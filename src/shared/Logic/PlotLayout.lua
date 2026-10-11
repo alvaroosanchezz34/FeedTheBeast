@@ -32,7 +32,7 @@ PlotLayout.Local = {
 	Spawn = { x = 0, z = -18 },
 	CollectPad = { x = 17, z = -19 },
 	DeliveryPad = { x = -17, z = -19 },
-	Sign = { x = -9, z = -27 },
+	Sign = { x = 0, z = -27.4 },
 	StarterFood = { { x = -4, z = -11 }, { x = 0, z = -10 }, { x = 4, z = -11 } },
 }
 

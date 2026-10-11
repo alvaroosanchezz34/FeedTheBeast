@@ -27,11 +27,17 @@
     },
     "Lighting": {
       "$properties": {
-        "Ambient": [0.45, 0.45, 0.5],
-        "OutdoorAmbient": [0.55, 0.55, 0.6],
-        "Brightness": 2.4,
-        "ClockTime": 14.5,
-        "GlobalShadows": true
+        "Technology": "ShadowMap",
+        "Ambient": [0.42, 0.44, 0.52],
+        "OutdoorAmbient": [0.55, 0.58, 0.66],
+        "Brightness": 2.6,
+        "ClockTime": 15.2,
+        "GeographicLatitude": 32,
+        "GlobalShadows": true,
+        "EnvironmentDiffuseScale": 0.55,
+        "EnvironmentSpecularScale": 0.4,
+        "ShadowSoftness": 0.25,
+        "ExposureCompensation": 0.05
       }
     },
     "SoundService": {

@@ -119,6 +119,14 @@ return function()
 		h:joinPlayer(i, "P" .. i)
 	end
 	local world = {}
+	-- Sin física, las piezas soldadas (p. ej. la hamburguesa del puesto) hay que colocarlas a mano.
+	for _ = 1, 4 do -- varias pasadas: el orden de los descendientes no garantiza padres antes que hijos
+		for _, d in ipairs(h.game:GetService("Workspace"):GetDescendants()) do
+			if d.ClassName == "Weld" and d.Part0 and d.Part1 then
+				d.Part1.CFrame = d.Part0.CFrame * d.C0 * d.C1:Inverse()
+			end
+		end
+	end
 	for _, d in ipairs(h.game:GetService("Workspace"):GetDescendants()) do
 		if d:IsA("BasePart") and d.Transparency < 1 and d.Name ~= "HumanoidRootPart" then
 			table.insert(world, partData(d))

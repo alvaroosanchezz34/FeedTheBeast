@@ -240,14 +240,16 @@ def creature_sheet(creatures, pose, path, cell=250):
     return path
 
 
-def world_view(parts, path, size=1100):
-    top = render(parts, (0, 400, 0.01), (0, 0, 0), 440, size, (16, 18, 30, 255), light=(0.3, 1, 0.4))
-    angled = render(parts, (-230, 190, -330), (0, 0, 20), 470, size, (16, 18, 30, 255))
-    sheet = Image.new("RGB", (size * 2 + 12, size + 26), (23, 26, 43))
-    sheet.paste(top.convert("RGB"), (0, 0))
-    sheet.paste(angled.convert("RGB"), (size + 12, 0))
+def world_view(parts, path, size=1000):
+    bg = (150, 196, 240, 255)
+    top = render(parts, (0, 400, 0.01), (0, 0, 0), 440, size, bg, light=(0.3, 1, 0.4))
+    plaza = render(parts, (-120, 95, -170), (0, 4, 10), 230, size, bg)
+    plot = render(parts, (-52, 46, 60), (0, 3, 132), 96, size, bg)
+    sheet = Image.new("RGB", (size * 3 + 24, size + 26), (23, 26, 43))
+    for i, image in enumerate((top, plaza, plot)):
+        sheet.paste(image.convert("RGB"), (i * (size + 12), 0))
     draw = ImageDraw.Draw(sheet)
-    draw.text((8, size + 6), "Map preview (top-down and 3/4 view, 3 players joined). Approximate offline render — not the Roblox renderer.", font=font(12), fill=(120, 128, 160))
+    draw.text((8, size + 6), "Map preview: top-down, plaza and one plot (3 players joined). Approximate offline render (no shadows, lighting or particles).", font=font(12), fill=(160, 168, 200))
     sheet.save(path)
     return path
 
@@ -291,6 +293,10 @@ def turnaround(creatures, species, path, cell=420):
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "world":
+        with open(os.path.join(ROOT, "world.json")) as fh:
+            print(world_view(json.load(fh), os.path.join(ROOT, "world.png")))
+        return 0
     if len(sys.argv) > 1 and sys.argv[1] == "foods":
         with open(os.path.join(ROOT, "foods.json")) as fh:
             print(food_sheet(json.load(fh), os.path.join(ROOT, "foods.png")))

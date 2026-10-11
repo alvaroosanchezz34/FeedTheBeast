@@ -28,9 +28,15 @@ local padCooldown = {} -- userId -> reloj de la última recogida
 
 local A = Constants.PlotAttr
 
+local applyStyle -- definida más abajo
+
 function PlotService.Init(allServices)
 	services = allServices
 	world = WorldBuilder.build()
+	-- Las parcelas sin dueño se muestran con los corrales cerrados y sin decoración.
+	for _, plot in ipairs(world.plots) do
+		applyStyle(plot, 0, 0, false)
+	end
 end
 
 function PlotService.world()
@@ -86,7 +92,7 @@ function PlotService.setEconomy(index, income, pending, cap)
 	end
 end
 
-local function applyStyle(plot, styleLevel, slots, aura)
+function applyStyle(plot, styleLevel, slots, aura)
 	local style = UpgradeConfig.PlotStyles[styleLevel] or UpgradeConfig.PlotStyles[0]
 	plot.floor.Material = style.floor
 	plot.floor.Color = styleLevel >= 2 and Color3.fromRGB(236, 232, 240) or Color3.fromRGB(128, 190, 110)
@@ -95,8 +101,15 @@ local function applyStyle(plot, styleLevel, slots, aura)
 	end
 	for slot, pad in ipairs(plot.slotPads) do
 		local unlocked = slot <= slots
-		pad.Transparency = unlocked and 0 or 0.75
-		pad.Color = unlocked and Color3.fromRGB(235, 235, 240) or Color3.fromRGB(90, 90, 100)
+		pad.Transparency = unlocked and 0 or 0.7
+		pad.Color = unlocked and Color3.fromRGB(236, 214, 150) or Color3.fromRGB(96, 98, 112)
+	end
+	-- Decoración desbloqueada por "Plot Makeover": cada nivel añade la suya (cosmética).
+	for level, parts in ipairs(plot.decor) do
+		local shown = styleLevel >= level
+		for _, part in ipairs(parts) do
+			part.Transparency = shown and (part:GetAttribute("ShownTransparency") or 0) or 1
+		end
 	end
 	plot.model:SetAttribute(A.Style, styleLevel)
 	plot.model:SetAttribute(A.Aura, aura == true)
