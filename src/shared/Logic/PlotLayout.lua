@@ -26,12 +26,14 @@ function PlotLayout.slotLocal(slot)
 	return { x = SLOT_X[col], z = SLOT_Z[row] }
 end
 
+-- El jugador aparece en la entrada MIRANDO hacia sus criaturas (fondo de la parcela, +Z local):
+-- lo primero que ve es su criatura inicial, con la comida de bienvenida en línea recta hacia ella.
 PlotLayout.Local = {
-	Spawn = { x = 0, z = -14 },
+	Spawn = { x = 0, z = -18 },
 	CollectPad = { x = 17, z = -19 },
 	DeliveryPad = { x = -17, z = -19 },
-	Sign = { x = 0, z = -27 },
-	StarterFood = { { x = -6, z = -22 }, { x = 0, z = -23 }, { x = 6, z = -22 } },
+	Sign = { x = -9, z = -27 },
+	StarterFood = { { x = -4, z = -11 }, { x = 0, z = -10 }, { x = 4, z = -11 } },
 }
 
 -- Convierte coordenadas locales de parcela a mundo. Devuelve x, z.

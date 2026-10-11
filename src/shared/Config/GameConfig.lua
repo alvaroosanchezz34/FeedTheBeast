@@ -7,6 +7,8 @@ local GameConfig = {
 
 	StartingCoins = 50,
 	StarterSpecies = "GOBBLO",
+	-- Espacio central de la primera fila: queda justo delante del punto de aparición.
+	StarterSlot = 2,
 	-- Comida que aparece en la propia parcela la primera vez (tutorial rápido).
 	StarterPickups = { "BREAD_CRUMB", "APPLE", "CARROT" },
 

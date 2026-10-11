@@ -80,6 +80,10 @@ function EconomyService.collect(userId)
 	local added = EconomyService.addCoins(userId, amount)
 	EconomyService.refreshPlot(session)
 	if added > 0 then
+		if not profile.flags.firstCollect then
+			profile.flags.firstCollect = true
+			services.StateService.push(userId, "flags")
+		end
 		services.ValidationService.notify(session.player, "+" .. Utilities.formatNumber(added) .. " coins", "reward", "💰")
 		local pos = services.CharacterService.positionOf(userId)
 		if pos then

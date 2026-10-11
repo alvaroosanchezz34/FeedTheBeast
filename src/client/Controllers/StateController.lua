@@ -14,7 +14,7 @@ StateController.Changed = Signal.new() -- (clave, valor)
 StateController.Notified = Signal.new() -- (datos de notificación)
 StateController.SelectedFoodChanged = Signal.new()
 
-local state = {}
+local state: { [string]: any } = {}
 local listeners = {} -- clave -> { fn }
 local remotes
 local selectedFood = nil

@@ -93,7 +93,9 @@ end
 
 local function setCarrier(entry, userId)
 	carrying[userId] = entry.id
-	lastPositions[userId] = nil
+	-- El punto de partida del control de velocidad es donde se recoge la caja.
+	local position = services.CharacterService.positionOf(userId)
+	lastPositions[userId] = position and { position = position, time = Clock.now() } or nil
 	TheftService.refreshSpeed(userId)
 end
 
@@ -342,6 +344,29 @@ local function dropEntry(entry, position)
 	return true
 end
 
+-- Anti-teleport: un portador que se ha movido muy por encima de su velocidad suelta la caja en
+-- su última posición válida. Devuelve false si la soltó. Se comprueba periódicamente y también
+-- justo antes de entregar (para que un salto directo a la zona de entrega no sirva de nada).
+local function checkSpeed(userId, entry, now)
+	local position = services.CharacterService.positionOf(userId)
+	if not position then
+		return true
+	end
+	local last = lastPositions[userId]
+	if last then
+		local elapsed = math.max(0.05, now - last.time)
+		local moved = Vector3.new(position.X - last.position.X, 0, position.Z - last.position.Z).Magnitude
+		local allowed = services.CharacterService.speedOf(userId) * TheftConfig.SpeedTolerance * elapsed + 6
+		if moved > allowed then
+			warn(string.format("[Theft] %d moved %.1f studs in %.2fs while carrying; dropping crate", userId, moved, elapsed))
+			dropEntry(entry, last.position)
+			return false
+		end
+	end
+	lastPositions[userId] = { position = position, time = now }
+	return true
+end
+
 function TheftService.dropCarried(userId)
 	local entry = carrying[userId] and crates[carrying[userId]]
 	if not entry then
@@ -398,6 +423,9 @@ function TheftService.tryDeliver(userId)
 	end
 	local session = services.PlayerDataService.getSession(userId)
 	if not session or not session.plotIndex then
+		return false
+	end
+	if not checkSpeed(userId, entry, Clock.now()) then
 		return false
 	end
 	-- Doble comprobación de posición en servidor.
@@ -543,28 +571,14 @@ function TheftService.Update(dt)
 		end)
 	end
 
-	-- Anti-teleport: un portador que se mueve muy por encima de su velocidad suelta la caja.
+	-- Anti-teleport periódico.
 	speedTimer += dt
 	if speedTimer >= TheftConfig.SpeedCheckInterval then
 		speedTimer = 0
-		for userId, crateId in pairs(carrying) do
+		for userId, crateId in pairs(table.clone(carrying)) do
 			local entry = crates[crateId]
-			local position = services.CharacterService.positionOf(userId)
-			if entry and position then
-				local last = lastPositions[userId]
-				if last then
-					local elapsed = math.max(0.05, now - last.time)
-					local moved = Vector3.new(position.X - last.position.X, 0, position.Z - last.position.Z).Magnitude
-					local allowed = services.CharacterService.speedOf(userId) * TheftConfig.SpeedTolerance * elapsed + 6
-					if moved > allowed then
-						warn(string.format("[Theft] %d moved %.1f studs in %.2fs while carrying; dropping crate", userId, moved, elapsed))
-						dropEntry(entry, last.position)
-						position = nil
-					end
-				end
-				if position then
-					lastPositions[userId] = { position = position, time = now }
-				end
+			if entry then
+				checkSpeed(userId, entry, now)
 			end
 		end
 	end

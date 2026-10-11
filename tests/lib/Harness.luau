@@ -67,7 +67,7 @@ end
 function Signal:Fire(...)
 	for _, entry in ipairs(table.clone(self.handlers)) do
 		if entry.connection.Connected then
-			luneTask.spawn(entry.fn, ...)
+			luneTask.spawn(Harness.guarded(entry.fn), ...)
 		end
 	end
 	local waiting = self.waiting
@@ -78,6 +78,22 @@ function Signal:Fire(...)
 end
 
 Harness.Signal = Signal
+
+-- Errores no capturados en hilos lanzados por el código del juego (task.spawn, señales...).
+-- En Roblox aparecerían en rojo en la consola; aquí se acumulan para que los tests fallen.
+Harness.uncaught = {}
+
+local function guarded(fn)
+	return function(...)
+		local ok, err = xpcall(fn, function(message)
+			return tostring(message) .. "\n" .. debug.traceback("", 2)
+		end, ...)
+		if not ok then
+			table.insert(Harness.uncaught, err)
+		end
+	end
+end
+Harness.guarded = guarded
 
 ---------------------------------------------------------------------------------------------
 -- Estado por instancia (las instancias de Lune no sirven como claves de tabla)
@@ -739,12 +755,19 @@ function Harness.new(opts)
 	env.OverlapParams = env.RaycastParams
 	env.game = gameProxy
 	env.workspace = game:GetService("Workspace")
+	local function wrap(fn)
+		return type(fn) == "function" and guarded(fn) or fn
+	end
 	env.task = {
-		spawn = luneTask.spawn,
-		defer = luneTask.defer,
+		spawn = function(fn, ...)
+			return luneTask.spawn(wrap(fn), ...)
+		end,
+		defer = function(fn, ...)
+			return luneTask.defer(wrap(fn), ...)
+		end,
 		delay = function(_, fn, ...)
 			-- Los retardos reales no avanzan con el reloj simulado: se ejecutan en el siguiente ciclo.
-			return luneTask.defer(fn, ...)
+			return luneTask.defer(wrap(fn), ...)
 		end,
 		cancel = luneTask.cancel,
 		wait = function()
@@ -1028,9 +1051,11 @@ function Harness:removePlayer(player)
 	end
 	signalOf(Players, "PlayerRemoving"):Fire(player)
 	self:settle(6)
+	-- Como en Roblox, el personaje sale del árbol; no se destruye para que el código que aún
+	-- tenga una referencia pueda leer `.Parent` (nil) sin error.
 	local character = player.Character
 	if character then
-		character:Destroy()
+		character.Parent = nil
 	end
 	player.Parent = nil
 end

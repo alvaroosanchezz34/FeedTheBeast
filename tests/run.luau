@@ -43,6 +43,14 @@ for _, suite in ipairs(suites) do
 	end
 end
 
+local Harness = require("./lib/Harness")
+if #Harness.uncaught > 0 then
+	TestKit.suite("Errores no capturados")
+	TestKit.test("ningún hilo del juego falló en segundo plano", function()
+		error(string.format("%d errores:\n%s", #Harness.uncaught, table.concat(Harness.uncaught, "\n---\n", 1, math.min(5, #Harness.uncaught))), 0)
+	end)
+end
+
 local results = TestKit.results()
 print(string.format("\n%d passed, %d failed (%d suites)", results.passed, results.failed, #names))
 if results.failed > 0 then

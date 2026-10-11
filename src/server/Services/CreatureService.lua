@@ -260,7 +260,7 @@ function CreatureService.Start()
 		local profile = session.profile
 		-- Criatura inicial (idempotente).
 		if ProfileSchema.creatureCount(profile) == 0 and not profile.flags.starterGiven then
-			ProfileSchema.addCreature(profile, GameConfig.StarterSpecies, "NORMAL", 1, Clock.unix())
+			ProfileSchema.addCreature(profile, GameConfig.StarterSpecies, "NORMAL", GameConfig.StarterSlot, Clock.unix())
 			profile.flags.starterGiven = true
 		end
 		CreatureService.respawnAll(session)

@@ -305,12 +305,11 @@ function EventService.Start()
 end
 
 function EventService.Update(dt)
-	if not EventConfig.Enabled then
-		return
-	end
 	local now = Clock.now()
 	if state.phase == "Idle" then
-		if now >= state.nextAt and services.PlayerDataService.count() > 0 then
+		-- `Enabled = false` solo apaga la programación automática: un evento forzado (admin)
+		-- sigue su ciclo completo.
+		if EventConfig.Enabled and now >= state.nextAt and services.PlayerDataService.count() > 0 then
 			local eventId = EventLogic.pickEvent(rnd, state.last)
 			if eventId then
 				announce(eventId)

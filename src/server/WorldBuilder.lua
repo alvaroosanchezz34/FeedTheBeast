@@ -169,8 +169,8 @@ local function buildPlot(plotsFolder, index)
 	end
 
 	-- Cartel del propietario.
-	part({ name = "SignPost", size = Vector3.new(0.6, 5, 0.6), cf = cf * CFrame.new(PlotLayout.Local.Sign.x - 9, 2.5, PlotLayout.Local.Sign.z), color = Color3.fromRGB(90, 70, 60), material = Enum.Material.Wood, parent = model })
-	local sign = part({ name = "Sign", size = Vector3.new(7, 3.2, 0.5), cf = cf * CFrame.new(PlotLayout.Local.Sign.x - 9, 5.4, PlotLayout.Local.Sign.z), color = color, material = Enum.Material.SmoothPlastic, parent = model })
+	part({ name = "SignPost", size = Vector3.new(0.6, 5, 0.6), cf = cf * CFrame.new(PlotLayout.Local.Sign.x, 2.5, PlotLayout.Local.Sign.z), color = Color3.fromRGB(90, 70, 60), material = Enum.Material.Wood, parent = model })
+	local sign = part({ name = "Sign", size = Vector3.new(7, 3.2, 0.5), cf = cf * CFrame.new(PlotLayout.Local.Sign.x, 5.4, PlotLayout.Local.Sign.z), color = color, material = Enum.Material.SmoothPlastic, parent = model })
 
 	-- Punto de aparición (decorativo; el teletransporte lo hace CharacterService).
 	local spawnPad = part({ name = "SpawnPad", size = Vector3.new(8, 0.2, 8), cf = cf * CFrame.new(PlotLayout.Local.Spawn.x, 0.1, PlotLayout.Local.Spawn.z), color = Color3.fromRGB(240, 240, 250), material = Enum.Material.Marble, canCollide = false, parent = model })
@@ -218,7 +218,8 @@ local function buildPlot(plotsFolder, index)
 		beacons = beacons,
 		sign = sign,
 		spawnPad = spawnPad,
-		spawnCFrame = cf * CFrame.new(PlotLayout.Local.Spawn.x, 3.5, PlotLayout.Local.Spawn.z),
+		-- Gira 180°: el frente del personaje (-Z) apunta al fondo de la parcela, donde están las criaturas.
+		spawnCFrame = cf * CFrame.new(PlotLayout.Local.Spawn.x, 3.5, PlotLayout.Local.Spawn.z) * CFrame.Angles(0, math.pi, 0),
 		slotPads = slotPads,
 		slotCFrames = slotCFrames,
 		collectPad = collectPad,
