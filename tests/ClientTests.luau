@@ -453,12 +453,13 @@ return function()
 		local hidden = 0
 		for _, pickup in ipairs(h.game:GetService("Workspace").FTB_Pickups:GetChildren()) do
 			if pickup:GetAttribute("Owner") == 2 then
-				expect.equal(pickup.LocalTransparencyModifier, 1)
-				expect.equal(pickup:FindFirstChild("Icon"), nil)
+				expect.equal(pickup:FindFirstChildOfClass("Model"), nil, "sin modelo para quien no puede cogerla")
 				hidden += 1
 			elseif pickup:GetAttribute("Owner") == 1 then
-				expect.truthy(pickup:FindFirstChild("Icon"), "la propia sí")
+				expect.truthy(pickup:FindFirstChildOfClass("Model"), "la propia sí tiene modelo 3D")
 			end
+			expect.equal(pickup.Transparency, 1, "la pieza lógica del servidor es invisible")
+			expect.equal(pickup:FindFirstChildOfClass("BillboardGui"), nil, "sin emoji flotante")
 		end
 		expect.equal(hidden, 3)
 		-- Kioscos

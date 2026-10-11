@@ -252,6 +252,26 @@ def world_view(parts, path, size=1100):
     return path
 
 
+def food_sheet(foods, path, cell=230, cols=5):
+    rows = math.ceil(len(foods) / cols)
+    sheet = Image.new("RGB", (cols * cell, rows * (cell + 26) + 22), (23, 26, 43))
+    draw = ImageDraw.Draw(sheet)
+    f = font(13)
+    for i, food in enumerate(foods):
+        x, y = (i % cols) * cell, (i // cols) * (cell + 26)
+        h, r = food["height"], food["radius"]
+        center = np.array([0, h * 0.5, 0.0])
+        direction = np.array([-0.5, 0.45, -1.0])
+        direction /= np.linalg.norm(direction)
+        span = max(h, r * 2.2) * 1.3
+        image = render(food["parts"], center + direction * 20, center, span, cell, (33, 38, 64, 255))
+        sheet.paste(image.convert("RGB"), (x, y))
+        draw.text((x + cell / 2, y + cell + 12), food["name"], font=f, fill=RARITY[food["rarity"]], anchor="mm")
+    draw.text((8, sheet.height - 18), "Approximate offline preview — not the Roblox renderer.", font=font(12), fill=(120, 128, 160))
+    sheet.save(path)
+    return path
+
+
 def turnaround(creatures, species, path, cell=420):
     """Una especie desde cuatro ángulos (para revisar solapes y proporciones)."""
     views = [c for c in creatures if c["species"] == species and c["mutation"] == "NORMAL"]
@@ -271,6 +291,10 @@ def turnaround(creatures, species, path, cell=420):
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "foods":
+        with open(os.path.join(ROOT, "foods.json")) as fh:
+            print(food_sheet(json.load(fh), os.path.join(ROOT, "foods.png")))
+        return 0
     if len(sys.argv) > 1:
         with open(os.path.join(ROOT, "creatures.json")) as fh:
             creatures = json.load(fh)
@@ -284,6 +308,8 @@ def main():
     print(creature_sheet(creatures, "idle", os.path.join(ROOT, "creatures.png")))
     print(creature_sheet(creatures, "eat", os.path.join(ROOT, "creatures_eat.png")))
     print(world_view(world, os.path.join(ROOT, "world.png")))
+    with open(os.path.join(ROOT, "foods.json")) as fh:
+        print(food_sheet(json.load(fh), os.path.join(ROOT, "foods.png")))
 
 
 if __name__ == "__main__":

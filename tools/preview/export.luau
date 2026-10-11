@@ -94,6 +94,26 @@ return function()
 	end
 	fs.writeFile("build/preview/creatures.json", serde.encode("json", creatures))
 
+	-- Comida: los 20 modelos.
+	local FoodModels = h:require(Shared .. "Food.FoodModels")
+	local FoodConfig = h:require(Shared .. "Config.FoodConfig")
+	local foods = {}
+	for _, foodId in ipairs(FoodConfig.Order) do
+		local visual = FoodModels.build(foodId)
+		if visual then
+			solve(visual)
+			local parts = {}
+			for _, record in ipairs(visual.records) do
+				if record.part.Transparency < 1 then
+					table.insert(parts, partData(record.part))
+				end
+			end
+			table.insert(foods, { id = foodId, name = FoodConfig.Foods[foodId].name, rarity = FoodConfig.Foods[foodId].rarity, height = visual.height, radius = visual.radius, parts = parts })
+			visual:destroy()
+		end
+	end
+	fs.writeFile("build/preview/foods.json", serde.encode("json", foods))
+
 	-- Mapa: todas las piezas visibles que construye el servidor, con un jugador por parcela.
 	for i = 1, 3 do
 		h:joinPlayer(i, "P" .. i)

@@ -22,6 +22,7 @@ local VFXConfig = require(Shared.Config.VFXConfig)
 local EconomyMath = require(Shared.Logic.EconomyMath)
 local CreatureBuilder = require(Shared.Creatures.CreatureBuilder)
 local MutationVisuals = require(Shared.Creatures.MutationVisuals)
+local FoodModels = require(Shared.Food.FoodModels)
 local Signal = require(Shared.Signal)
 
 local CreatureController = {}
@@ -58,6 +59,8 @@ local function hasFood()
 	local inventory = StateController.get("inventory")
 	return inventory ~= nil and next(inventory) ~= nil
 end
+
+local startBite -- definida más abajo
 
 local function keyOf(model)
 	local id = model:GetAttribute(A.Id)
@@ -201,6 +204,10 @@ local function destroyEntry(key)
 		connection:Disconnect()
 	end
 	AuraController.detach(key)
+	if entry.bite then
+		entry.bite.visual:destroy()
+		entry.bite = nil
+	end
 	entry.visual:destroy()
 end
 
@@ -362,6 +369,7 @@ local function onCreatureEvent(model, kind, data)
 		local food = FoodConfig.Foods[data.food]
 		local duration = type(data.duration) == "number" and math.clamp(data.duration, 0.2, 3) or 0.8
 		entry.eat = { elapsed = 0, duration = duration }
+		startBite(entry, data.food, duration)
 		if entry.isGiant then
 			EffectsController.play("GiantBite", { model = model })
 			return
@@ -385,7 +393,53 @@ local function onCreatureEvent(model, kind, data)
 	end
 end
 
+-- La comida entra volando en la boca durante la primera parte del mordisco.
+local BITE_PORTION = 0.42
+
+local function clearBite(entry)
+	if entry.bite then
+		entry.bite.visual:destroy()
+		entry.bite = nil
+	end
+end
+
+function startBite(entry, foodId, duration)
+	clearBite(entry)
+	if not entry.near or not foodId then
+		return
+	end
+	local visual = FoodModels.build(foodId)
+	if not visual then
+		return
+	end
+	visual.model.Parent = entry.visual.model
+	entry.bite = { visual = visual, elapsed = 0, duration = math.max(0.15, duration * BITE_PORTION) }
+end
+
+local function updateBite(entry, dt)
+	local bite = entry.bite
+	if not bite then
+		return
+	end
+	bite.elapsed += dt
+	local a = bite.elapsed / bite.duration
+	if a >= 1 then
+		clearBite(entry)
+		return
+	end
+	local mouth = entry.visual:anchorWorld("Mouth")
+	local root = entry.visual.root.CFrame
+	local reach = entry.visual.radius * entry.displayScale
+	-- Sale de delante y un poco por encima de la criatura y describe un arco hasta la boca.
+	local start = mouth + root.LookVector * (reach * 1.2 + 2) + Vector3.new(0, reach * 0.5 + 1, 0)
+	local position = start:Lerp(mouth, a) + Vector3.new(0, math.sin(a * math.pi) * 1.2, 0)
+	local size = math.clamp(reach / 3, 0.6, 2.2) * (1 - a * 0.75)
+	bite.visual:setScale(size)
+	bite.visual.root.CFrame = CFrame.new(position - Vector3.new(0, bite.visual.height * size * 0.5, 0)) * CFrame.Angles(0, a * 5, 0)
+end
+
 local function updateEntry(entry, dt, animate)
+	updateBite(entry, dt)
 	-- Pulsos de escala
 	local popFactor = 1
 	local index = 1
@@ -566,6 +620,10 @@ function CreatureController.Update(dt)
 			entry.eat = nil
 			entry.growAfter = nil
 			entry.happy = nil
+			if entry.bite then
+				entry.bite.visual:destroy()
+				entry.bite = nil
+			end
 			if #entry.pops > 0 then
 				table.clear(entry.pops)
 			end

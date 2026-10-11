@@ -19,6 +19,7 @@ local FoodConfig = require(Shared.Config.FoodConfig)
 local RarityConfig = require(Shared.Config.RarityConfig)
 local TheftConfig = require(Shared.Config.TheftConfig)
 local VFXConfig = require(Shared.Config.VFXConfig)
+local FoodModels = require(Shared.Food.FoodModels)
 local Utilities = require(Shared.Utilities)
 local Signal = require(Shared.Signal)
 
@@ -105,6 +106,27 @@ local function findPickup(id)
 	return nil, nil
 end
 
+local GROUND_OFFSET = 1.55 -- la pieza lógica flota a esta altura sobre el suelo
+local APPEAR_TIME = 0.35
+
+local function groundDisc(parent, position, diameter, color, transparency)
+	local disc = Instance.new("Part")
+	disc.Name = "Ground"
+	disc.Shape = Enum.PartType.Cylinder
+	disc.Anchored = true
+	disc.CanCollide = false
+	disc.CanTouch = false
+	disc.CanQuery = false
+	disc.CastShadow = false
+	disc.Material = Enum.Material.SmoothPlastic
+	disc.Color = color
+	disc.Transparency = transparency
+	disc.Size = Vector3.new(0.06, diameter, diameter)
+	disc.CFrame = CFrame.new(position) * CFrame.Angles(0, 0, math.rad(90))
+	disc.Parent = parent
+	return disc
+end
+
 local function addPickup(part)
 	if not part:IsA("BasePart") then
 		return
@@ -117,39 +139,60 @@ local function addPickup(part)
 	end
 	local owner = part:GetAttribute(PA.Owner) or 0
 	local hidden = owner ~= 0 and owner ~= localUserId
+	local base = part.CFrame
 	local entry = {
 		id = id,
 		part = part,
-		base = part.CFrame,
+		base = base,
 		phase = (id * 0.73) % 6.28,
 		drop = part:GetAttribute(PA.DropFrom) or 0,
 		dropElapsed = 0,
+		appear = 0,
 		hidden = hidden,
+		visual = nil,
 	}
-	if hidden then
-		-- Comida de bienvenida de otro jugador: no se puede recoger, así que no se muestra.
-		part.LocalTransparencyModifier = 1
-	else
-		local rarity = RarityConfig.Rarities[def.rarity]
-		local gui = billboard(part, "Icon", UDim2.fromScale(2.4, 2.4), Vector3.new(0, 2.1, 0), ANIM_DISTANCE, false)
-		label(gui, { text = def.icon, stroke = 1 })
-		local glow = RarityConfig.Index[def.rarity] >= RarityConfig.Index.Rare or part:GetAttribute(PA.Golden) == true
-		if glow and SettingsController.quality() ~= "Low" then
-			local emitter = Instance.new("ParticleEmitter")
-			emitter.Name = "RarityGlow"
-			emitter.Texture = VFXConfig.Textures.Sparkle
-			emitter.Rate = 3
-			emitter.Lifetime = NumberRange.new(0.7, 1.1)
-			emitter.Speed = NumberRange.new(0.5, 1.5)
-			emitter.SpreadAngle = Vector2.new(180, 180)
-			emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, 0.45), NumberSequenceKeypoint.new(1, 0) })
-			emitter.Color = ColorSequence.new(part:GetAttribute(PA.Golden) and Color3.fromRGB(255, 214, 90) or rarity.color)
-			emitter.LightEmission = 0.9
-			emitter.Parent = part
+	-- La comida de bienvenida de otro jugador no se puede recoger, así que no se construye.
+	if not hidden then
+		local visual = FoodModels.build(foodId)
+		if visual then
+			entry.visual = visual
+			entry.lift = -visual.height * 0.5 -- el modelo se apoya en su base; se centra en la pieza
+			local golden = part:GetAttribute(PA.Golden) == true
+			if golden then
+				-- Variante dorada del evento: acabado metálico sobre el mismo modelo.
+				for _, record in ipairs(visual.records) do
+					record.part.Color = record.part.Color:Lerp(Color3.fromRGB(255, 206, 70), 0.72)
+					record.part.Material = Enum.Material.Metal
+					record.part.Reflectance = 0.3
+				end
+			end
+			visual:setScale(0.05)
+			visual.root.CFrame = base * CFrame.new(0, entry.lift, 0)
+			visual.model.Parent = part
+			-- Contacto con el suelo: sombra y, en comida rara, un aro del color de su rareza.
+			local ground = base.Position - Vector3.new(0, GROUND_OFFSET, 0)
+			groundDisc(part, ground, visual.radius * 1.7, Color3.fromRGB(10, 14, 24), 0.72)
+			local rarityIndex = RarityConfig.Index[def.rarity]
+			if rarityIndex >= RarityConfig.Index.Rare or golden then
+				local color = golden and Color3.fromRGB(255, 214, 90) or RarityConfig.Rarities[def.rarity].color
+				local ring = groundDisc(part, ground + Vector3.new(0, 0.03, 0), visual.radius * 2.4, color, 0.55)
+				ring.Material = Enum.Material.Neon
+				if SettingsController.quality() ~= "Low" then
+					local emitter = Instance.new("ParticleEmitter")
+					emitter.Name = "RarityGlow"
+					emitter.Texture = VFXConfig.Textures.Sparkle
+					emitter.Rate = rarityIndex >= RarityConfig.Index.Epic and 5 or 2.5
+					emitter.Lifetime = NumberRange.new(0.8, 1.3)
+					emitter.Speed = NumberRange.new(1.5, 3)
+					emitter.SpreadAngle = Vector2.new(25, 25)
+					emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, 0.4), NumberSequenceKeypoint.new(1, 0) })
+					emitter.Color = ColorSequence.new(color)
+					emitter.LightEmission = 0.9
+					emitter.EmissionDirection = Enum.NormalId.Right -- el cilindro está tumbado: +X = arriba
+					emitter.Parent = ring
+				end
+			end
 		end
-	end
-	if entry.drop > 0 then
-		part.CFrame = entry.base * CFrame.new(0, entry.drop, 0)
 	end
 	table.insert(pickups, entry)
 end
@@ -174,8 +217,9 @@ local function updatePickups(dt)
 		local part = entry.part
 		if not part.Parent then
 			table.remove(pickups, index)
-		elseif not entry.hidden then
+		elseif entry.visual then
 			local base = entry.base
+			local visual = entry.visual
 			local fall = 0
 			if entry.drop > 0 then
 				entry.dropElapsed += dt
@@ -185,9 +229,16 @@ local function updatePickups(dt)
 					entry.drop = 0
 				end
 			end
-			if fall > 0 or (base.Position - cameraPos).Magnitude <= ANIM_DISTANCE then
+			-- Aparición: crece con un pequeño rebote.
+			if entry.appear < 1 then
+				entry.appear = math.min(1, entry.appear + dt / APPEAR_TIME)
+				local a = entry.appear
+				visual:setScale(math.max(0.05, a + math.sin(a * math.pi) * 0.18))
+			end
+			if fall > 0 or entry.appear < 1 or (base.Position - cameraPos).Magnitude <= ANIM_DISTANCE then
 				local t = clock + entry.phase
-				part.CFrame = base * CFrame.new(0, fall + math.sin(t * 2.2) * 0.3, 0) * CFrame.Angles(0, t * 1.3, 0)
+				-- Flota y gira despacio (un giro completo cada ~9 s).
+				visual.root.CFrame = base * CFrame.new(0, entry.lift + fall + math.sin(t * 1.8) * 0.18, 0) * CFrame.Angles(0, t * 0.7, 0)
 			end
 		end
 	end

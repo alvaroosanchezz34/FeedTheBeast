@@ -16,6 +16,7 @@ local EconomyMath = require(Shared.Logic.EconomyMath)
 local Utilities = require(Shared.Utilities)
 
 local Theme = require(script.Parent.Theme)
+local FoodIcon = require(script.Parent.FoodIcon)
 
 local Hud = {}
 
@@ -227,7 +228,7 @@ function Hud.create(ctx)
 		button.LayoutOrder = slotOrder + (table.find(FoodConfig.Order, foodId) or 0)
 		Theme.corner(button, 12)
 		local stroke = Theme.stroke(button, Theme.rarityColor(def.rarity), 3)
-		Theme.label({ name = "Icon", text = def.icon, size = UDim2.new(1, 0, 1, -8), textSize = 36 }, button)
+		FoodIcon.new({ food = foodId, size = UDim2.new(1, -6, 1, -6), position = UDim2.fromOffset(3, 1) }, button)
 		local count = Theme.label({
 			name = "Count",
 			text = "1",

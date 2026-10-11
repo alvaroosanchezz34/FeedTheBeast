@@ -52,19 +52,10 @@ function FoodService.spawn(foodId, position, opts)
 	part.CanTouch = false
 	part.CanQuery = false
 	part.CastShadow = false
-	part.Material = opts.golden and Enum.Material.Neon or Enum.Material.SmoothPlastic
-	part.Color = def.color
-	part.TopSurface = Enum.SurfaceType.Smooth
-	part.BottomSurface = Enum.SurfaceType.Smooth
-	if def.shape == "Ball" then
-		part.Shape = Enum.PartType.Ball
-		part.Size = Vector3.new(2.2, 2.2, 2.2)
-	elseif def.shape == "Cylinder" then
-		part.Shape = Enum.PartType.Cylinder
-		part.Size = Vector3.new(1.2, 2.4, 2.4)
-	else
-		part.Size = Vector3.new(2, 2, 2)
-	end
+	-- La pieza del servidor es solo el punto lógico (invisible): cada cliente construye encima
+	-- el modelo 3D del alimento (Shared/Food/FoodModels).
+	part.Transparency = 1
+	part.Size = Vector3.new(1, 1, 1)
 	part.CFrame = CFrame.new(position)
 	part:SetAttribute(Constants.PickupAttr.Id, nextId)
 	part:SetAttribute(Constants.PickupAttr.Food, foodId)

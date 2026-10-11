@@ -292,9 +292,12 @@ function Kit:anchor(name, pos, parentPart)
 end
 
 -- info = { radius = radio horizontal aproximado, height = altura, center = Vector3 centro del cuerpo }
-function Kit:finish(info)
-	for _, name in ipairs(Kit.RequiredAnchors) do
-		assert(self.anchors[name], self.speciesId .. " is missing anchor " .. name)
+-- `prop = true` para objetos que no son criaturas (comida, decoración): no exige anclajes.
+function Kit:finish(info, prop)
+	if not prop then
+		for _, name in ipairs(Kit.RequiredAnchors) do
+			assert(self.anchors[name], self.speciesId .. " is missing anchor " .. name)
+		end
 	end
 	local unit = self.unit
 	return setmetatable({

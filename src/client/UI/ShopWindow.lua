@@ -15,6 +15,7 @@ local MonetizationConfig = require(Shared.Config.MonetizationConfig)
 local Utilities = require(Shared.Utilities)
 
 local Theme = require(script.Parent.Theme)
+local FoodIcon = require(script.Parent.FoodIcon)
 
 local ShopWindow = {}
 
@@ -45,7 +46,7 @@ function ShopWindow.register(manager, ctx)
 			local def = FoodConfig.Foods[foodId]
 			local rarityColor = Theme.rarityColor(def.rarity)
 			local card = Theme.panel({ name = foodId, color = C.PanelDark, strokeColor = rarityColor, order = index }, scroll)
-			Theme.label({ text = def.icon, size = UDim2.new(1, 0, 0, 52), position = UDim2.fromOffset(0, 4), textSize = 40 }, card)
+			FoodIcon.new({ food = foodId, size = UDim2.new(1, -40, 0, 56), position = UDim2.fromOffset(20, 2) }, card)
 			Theme.label({ text = def.name, font = Theme.Fonts.Display, textSize = 16, color = rarityColor, stroke = true, size = UDim2.new(1, -10, 0, 20), position = UDim2.fromOffset(5, 56), scaled = true, maxTextSize = 16 }, card)
 			local detail = string.format("+%d growth", def.growth)
 			if #def.favoriteOf > 0 then
