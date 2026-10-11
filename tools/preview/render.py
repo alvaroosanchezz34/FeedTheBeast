@@ -102,6 +102,9 @@ def part_mesh(part):
     shape = part["shape"]
     if shape == "Ball":
         return sphere_mesh(min(sx, sy, sz))
+    if shape == "Ellipsoid":
+        v, tris = sphere_mesh(1.0, rings=11, segs=20)
+        return v * np.array([sx, sy, sz]), tris
     if shape == "Cylinder":
         return cylinder_mesh(sx, min(sy, sz))
     if shape == "Wedge":
@@ -121,23 +124,25 @@ def look_at(eye, target):
 
 
 def render(parts, eye, target, span, size, background, light=(-0.45, 0.8, -0.4)):
-    """Proyección ortográfica; `span` = unidades del mundo que caben a lo alto/ancho."""
+    """Proyección ortográfica con z-buffer; `span` = unidades del mundo que caben en la imagen."""
     w = h = size * SS
-    image = Image.new("RGBA", (w, h), background)
+    color = np.empty((h, w, 3), dtype=np.float32)
+    color[:] = np.array(background[:3], dtype=np.float32) / 255.0
+    zbuf = np.full((h, w), np.inf, dtype=np.float32)
     right, up, forward = look_at(np.array(eye, float), np.array(target, float))
     light = np.array(light, float)
     light /= np.linalg.norm(light)
     scale = w / span
-    polys = []
+    target = np.array(target, float)
     for part in parts:
         pos, rot = cframe(part["cf"])
         verts, tris = part_mesh(part)
         world = verts @ rot.T + pos
-        rel = world - np.array(target, float)
-        px = rel @ right
-        py = rel @ up
+        rel = world - target
+        px = w / 2 + (rel @ right) * scale
+        py = h / 2 - (rel @ up) * scale
         pz = rel @ forward
-        base = np.array(part["color"], float)
+        base = np.array(part["color"], dtype=np.float32)
         neon = part["material"] == "Neon"
         alpha = 1.0 - min(0.9, part.get("transparency", 0))
         for a, b, c in tris:
@@ -146,20 +151,42 @@ def render(parts, eye, target, span, size, background, light=(-0.45, 0.8, -0.4))
             if ln < 1e-9:
                 continue
             n /= ln
+            # Todas las formas son convexas: la normal exterior apunta lejos del centro.
+            if np.dot(n, (world[a] + world[b] + world[c]) / 3 - pos) < 0:
+                n = -n
             if np.dot(n, forward) > 0:
-                continue  # cara trasera
-            if neon:
-                shade = 1.08
-            else:
-                shade = 0.52 + 0.5 * max(0.0, float(np.dot(n, light)))
+                continue
+            x0, y0, x1, y1, x2, y2 = px[a], py[a], px[b], py[b], px[c], py[c]
+            minx, maxx = int(max(0, math.floor(min(x0, x1, x2)))), int(min(w - 1, math.ceil(max(x0, x1, x2))))
+            miny, maxy = int(max(0, math.floor(min(y0, y1, y2)))), int(min(h - 1, math.ceil(max(y0, y1, y2))))
+            if minx > maxx or miny > maxy:
+                continue
+            area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0)
+            if abs(area) < 1e-9:
+                continue
+            xs = np.arange(minx, maxx + 1) + 0.5
+            ys = np.arange(miny, maxy + 1) + 0.5
+            gx, gy = np.meshgrid(xs, ys)
+            w0 = ((x1 - gx) * (y2 - gy) - (x2 - gx) * (y1 - gy)) / area
+            w1 = ((x2 - gx) * (y0 - gy) - (x0 - gx) * (y2 - gy)) / area
+            w2 = 1 - w0 - w1
+            inside = (w0 >= -1e-4) & (w1 >= -1e-4) & (w2 >= -1e-4)
+            if not inside.any():
+                continue
+            depth = w0 * pz[a] + w1 * pz[b] + w2 * pz[c]
+            region_z = zbuf[miny:maxy + 1, minx:maxx + 1]
+            mask = inside & (depth < region_z)
+            if not mask.any():
+                continue
+            shade = 1.08 if neon else 0.5 + 0.52 * max(0.0, float(np.dot(n, light)))
             col = np.clip(base * shade, 0, 1)
-            depth = (pz[a] + pz[b] + pz[c]) / 3
-            pts = [(w / 2 + px[i] * scale, h / 2 - py[i] * scale) for i in (a, b, c)]
-            polys.append((depth, pts, (int(col[0] * 255), int(col[1] * 255), int(col[2] * 255), int(alpha * 255))))
-    polys.sort(key=lambda p: -p[0])
-    draw = ImageDraw.Draw(image, "RGBA")
-    for _, pts, col in polys:
-        draw.polygon(pts, fill=col)
+            region_c = color[miny:maxy + 1, minx:maxx + 1]
+            if alpha >= 0.99:
+                region_c[mask] = col
+                region_z[mask] = depth[mask]
+            else:
+                region_c[mask] = region_c[mask] * (1 - alpha) + col * alpha
+    image = Image.fromarray((color * 255).astype(np.uint8), "RGB").convert("RGBA")
     return image.resize((size, size), Image.LANCZOS)
 
 
@@ -225,7 +252,31 @@ def world_view(parts, path, size=1100):
     return path
 
 
+def turnaround(creatures, species, path, cell=420):
+    """Una especie desde cuatro ángulos (para revisar solapes y proporciones)."""
+    views = [c for c in creatures if c["species"] == species and c["mutation"] == "NORMAL"]
+    angles = [(-0.42, 0.22, -1.0), (-1.0, 0.15, -0.05), (0.6, 0.3, 1.0), (0.0, 0.05, -1.0)]
+    sheet = Image.new("RGB", (cell * len(angles), cell * len(views)), (23, 26, 43))
+    for row, c in enumerate(views):
+        h, r = c["height"], c["radius"]
+        center = np.array([0, h * 0.5, 0.0])
+        span = max(h, r * 2.6) * 1.2
+        for col, d in enumerate(angles):
+            direction = np.array(d, float)
+            direction /= np.linalg.norm(direction)
+            image = render(c["parts"], center + direction * 30, center, span, cell, (33, 38, 64, 255))
+            sheet.paste(image.convert("RGB"), (col * cell, row * cell))
+    sheet.save(path)
+    return path
+
+
 def main():
+    if len(sys.argv) > 1:
+        with open(os.path.join(ROOT, "creatures.json")) as fh:
+            creatures = json.load(fh)
+        for species in sys.argv[1:]:
+            print(turnaround(creatures, species, os.path.join(ROOT, "turn_%s.png" % species)))
+        return 0
     with open(os.path.join(ROOT, "creatures.json")) as fh:
         creatures = json.load(fh)
     with open(os.path.join(ROOT, "world.json")) as fh:

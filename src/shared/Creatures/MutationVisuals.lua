@@ -18,12 +18,12 @@ function MutationVisuals.apply(visual, mutationId)
 			part.Material = override.material or record.baseMaterial
 			part.Reflectance = override.reflectance or 0
 			-- Las piezas translúcidas (p. ej. el orbe de Glorb) conservan su transparencia.
-			part.Transparency = record.baseTransparency
+			part.Transparency = record.hidden and 1 or record.baseTransparency
 		else
 			part.Color = record.baseColor
 			part.Material = record.baseMaterial
 			part.Reflectance = record.baseReflectance
-			part.Transparency = record.baseTransparency
+			part.Transparency = record.hidden and 1 or record.baseTransparency
 		end
 	end
 	visual.mutation = mutation.id

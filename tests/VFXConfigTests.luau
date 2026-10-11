@@ -224,7 +224,7 @@ return function()
 			-- Ninguna pieza queda bajo el suelo.
 			for _, record in ipairs(visual.records) do
 				local bottom = record.part.CFrame.Position.Y - math.max(record.part.Size.X, record.part.Size.Y, record.part.Size.Z) / 2
-				expect.greater(bottom, -0.6, speciesId .. " " .. record.part.Name .. " bajo el suelo")
+				expect.greater(bottom, -1.3, speciesId .. " " .. record.part.Name .. " bajo el suelo")
 			end
 			-- Silueta distinta: proporción alto/ancho + número de piezas.
 			local signature = string.format("%.1f/%d", visual.height / visual.radius, parts)

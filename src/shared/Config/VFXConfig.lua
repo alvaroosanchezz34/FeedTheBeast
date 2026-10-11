@@ -370,6 +370,11 @@ VFXConfig.Effects = {
 		bursts = { burst("Ground", 40, riseBurst({ rgb(255, 255, 255), rgb(255, 150, 80), rgb(255, 70, 160) }, 0.7, 2)), burst("Center", 30, sparkleBurst({ rgb(255, 255, 255), rgb(255, 180, 90) }, 6, 18, 0.5, 1.2)) },
 		ring = { color = rgb(255, 170, 90), from = 0.5, to = 8, time = 1 }, flash = { color = rgb(255, 190, 120), brightness = 1.6, range = 8, time = 1 }, sound = "Rebirth",
 	},
+	Evolve = {
+		priority = 3, maxDistance = 180, pop = 1.28, announce = true,
+		bursts = { burst("Ground", 30, riseBurst({ rgb(255, 255, 255), rgb(140, 255, 200), rgb(255, 230, 120) }, 0.6, 1.6)), burst("Center", 24, sparkleBurst({ rgb(255, 255, 255), rgb(255, 230, 120) }, 6, 15, 0.5, 1.1), "Medium") },
+		ring = { color = rgb(140, 255, 200), from = 0.5, to = 5, time = 0.8 }, flash = { color = rgb(200, 255, 220), brightness = 1.5, range = 6, time = 0.9 }, sound = "RareFind",
+	},
 	GiantBite = { priority = 2, maxDistance = 250, pop = 1.03, bursts = { burst("Mouth", 18, crumbs(rgb(255, 220, 150), rgb(220, 90, 60))) }, sound = "Eat" },
 }
 

@@ -70,6 +70,15 @@ function Nullabyte.build(kit)
 		})
 	end
 
+	-- Evolución: más fragmentos (etapa 2) y un halo roto de cubos cian (etapa 3).
+	for i, def in ipairs({ V(-3.1, 6.9, 0.6), V(3.0, 5.0, -0.7), V(1.6, 1.5, 1.6) }) do
+		kit:block("Shard" .. i, V(0.5, 0.5, 0.5), CFrame.new(def) * rot(i * 31, i * 17, i * 43), MAGENTA, { role = "Detail", material = Enum.Material.Neon, stage = 2 })
+	end
+	for i = 1, 5 do
+		local angle = (i - 1) / 5 * math.pi * 2 + 0.4
+		kit:block("Halo" .. i, V(0.6, 0.22, 0.6), CFrame.new(-0.2 + math.sin(angle) * 1.9, 8.25, 0.1 + math.cos(angle) * 1.9) * rot(0, math.deg(angle), 8), CYAN, { role = "Detail", parent = head, material = Enum.Material.Neon, stage = 3 })
+	end
+
 	kit:anchor("Mouth", V(0.3, 4.1, -2.0))
 	kit:anchor("Head", V(-0.2, 6.6, -1.0))
 	kit:anchor("Top", V(0, 9.1, 0))
@@ -108,6 +117,13 @@ function Nullabyte.eat(v, a)
 		local toCenter = (V(0, 4.6, 0) - def[1]) * (0.55 * pull)
 		v:pose("Frag" .. i, CFrame.new(toCenter) * rot(a * 360, a * 200, 0))
 	end
+end
+
+-- Satisfacción: los cubos se desalinean un instante y vuelven a encajar.
+function Nullabyte.happy(v, a)
+	local k = Anim.bump(a, 0.2)
+	v:pose("Torso", CFrame.new(0.5 * k, 0, 0) * rot(0, 90 * k, 0), true)
+	v:pose("Head", CFrame.new(-0.5 * k, 0.4 * k, 0) * rot(0, -120 * k, 0))
 end
 
 return Nullabyte

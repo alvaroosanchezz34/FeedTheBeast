@@ -47,6 +47,7 @@ function Kit.new(speciesId, unit)
 		anchors = {},
 		attachments = {},
 		partsByName = {},
+		eyes = {},
 	}, Kit)
 
 	-- Núcleo invisible: todo el cuerpo cuelga de aquí. La articulación "Body" mueve la criatura entera.
@@ -100,6 +101,18 @@ function Kit:_make(className, name, size, cf, color, opts)
 	if opts.role then
 		part:SetAttribute("Role", opts.role)
 	end
+	if opts.ellipsoid then
+		-- Elipsoide: una malla esférica que ocupa el tamaño de la pieza. Permite cuerpos
+		-- orgánicos (huevos, gotas, lentejas) con una sola pieza y sin assets externos.
+		local mesh = Instance.new("SpecialMesh")
+		mesh.MeshType = Enum.MeshType.Sphere
+		mesh.Parent = part
+	end
+	-- Piezas de evolución: existen siempre, pero solo se ven a partir de su etapa.
+	local hidden = opts.stage ~= nil and opts.stage > 1
+	if hidden then
+		part.Transparency = 1
+	end
 	part.Parent = self.model
 
 	local record = {
@@ -112,7 +125,9 @@ function Kit:_make(className, name, size, cf, color, opts)
 		baseColor = color,
 		baseMaterial = part.Material,
 		baseReflectance = part.Reflectance,
-		baseTransparency = part.Transparency,
+		baseTransparency = opts.transparency or 0,
+		stage = opts.stage,
+		hidden = hidden,
 	}
 	table.insert(self.records, record)
 	self.partsByName[name] = part
@@ -128,6 +143,65 @@ function Kit:ball(name, d, pos, color, opts)
 	opts = opts or {}
 	opts.shape = Enum.PartType.Ball
 	return self:_make("Part", name, Vector3.new(d, d, d), CFrame.new(pos), color, opts)
+end
+
+-- Elipsoide de tamaño `size` (Vector3). `cf` puede ser Vector3 o CFrame.
+function Kit:blob(name, size, cf, color, opts)
+	if typeof(cf) == "Vector3" then
+		cf = CFrame.new(cf)
+	end
+	opts = opts or {}
+	opts.ellipsoid = true
+	return self:_make("Part", name, size, cf, color, opts)
+end
+
+-- Ojo integrado en la cara: globo achatado hundido en la cabeza, iris y pupila que se pueden
+-- desplazar (mirada) y un párpado oculto que sale hacia delante para parpadear.
+--   opts = { parent, dir (hacia dónde mira, por defecto -Z), iris (Color3), lid (Color3),
+--            lidRole, irisScale, stage }
+function Kit:eyeball(name, d, pos, opts)
+	opts = opts or {}
+	local dir = (opts.dir or Vector3.new(0, 0, -1)).Unit
+	-- Base ortonormal propia (-Z local = dirección de la mirada, +Y lo más vertical posible).
+	local right = dir:Cross(Vector3.new(0, 1, 0))
+	if right.Magnitude < 1e-4 then
+		right = Vector3.new(1, 0, 0)
+	end
+	right = right.Unit
+	local upVector = right:Cross(dir).Unit
+	local frame = CFrame.fromMatrix(pos, right, upVector, -dir)
+	local function at(forward, right, up)
+		return frame * CFrame.new(right or 0, up or 0, -forward)
+	end
+	local sclera = self:blob(name, Vector3.new(d, d, d * 0.62), frame, opts.color or Color3.fromRGB(252, 252, 250), {
+		role = "Eye", parent = opts.parent, stage = opts.stage,
+	})
+	local irisD = d * (opts.irisScale or 0.6)
+	local iris = self:blob(name .. "Iris", Vector3.new(irisD, irisD, d * 0.2), at(d * 0.25), opts.iris or Color3.fromRGB(40, 44, 60), {
+		role = "Pupil", parent = sclera, joint = "Iris_" .. name, stage = opts.stage,
+	})
+	self:blob(name .. "Pupil", Vector3.new(irisD * 0.55, irisD * 0.55, d * 0.2), at(d * 0.3), Color3.fromRGB(12, 12, 18), {
+		role = "Pupil", parent = iris, stage = opts.stage,
+	})
+	self:blob(name .. "Glint", Vector3.new(d * 0.17, d * 0.17, d * 0.1), at(d * 0.38, irisD * 0.18, irisD * 0.2), Color3.fromRGB(255, 255, 255), {
+		role = "Pupil", parent = iris, material = Enum.Material.Neon, stage = opts.stage,
+	})
+	-- Párpado: en reposo queda detrás de la superficie del ojo (no se ve).
+	self:blob(name .. "Lid", Vector3.new(d * 1.06, d * 1.06, d * 0.5), at(-d * 0.08), opts.lid or Color3.fromRGB(120, 120, 120), {
+		role = opts.lidRole or "Body", parent = sclera, joint = "Lid_" .. name, stage = opts.stage,
+	})
+	local up = upVector
+	table.insert(self.eyes, {
+		name = name,
+		iris = "Iris_" .. name,
+		lid = "Lid_" .. name,
+		dir = dir,
+		right = right,
+		up = up,
+		range = d * 0.16, -- cuánto puede desplazarse el iris
+		blink = d * 0.5, -- cuánto avanza el párpado para tapar el ojo
+	})
+	return sclera
 end
 
 -- Bloque. `cf` puede ser Vector3 o CFrame.
@@ -147,6 +221,23 @@ function Kit:cyl(name, d, height, cf, color, opts)
 	opts.shape = Enum.PartType.Cylinder
 	-- El eje del cilindro de Roblox es X: se rota 90° para alinearlo con Y.
 	return self:_make("Part", name, Vector3.new(height, d, d), cf * CFrame.Angles(0, 0, math.rad(90)), color, opts)
+end
+
+-- Extremidad: cilindro que une dos puntos (hombro -> mano). Evita piezas "flotando" por un
+-- ángulo mal calculado.
+function Kit:limb(name, from, to, d, color, opts)
+	local axis = to - from
+	local up = axis.Unit
+	local right = up:Cross(Vector3.new(0, 0, 1))
+	if right.Magnitude < 1e-3 then
+		right = Vector3.new(1, 0, 0)
+	end
+	right = right.Unit
+	local back = right:Cross(up).Unit
+	local cf = CFrame.fromMatrix((from + to) / 2, right, up, back)
+	opts = opts or {}
+	opts.pivot = opts.pivot or from
+	return self:cyl(name, d, axis.Magnitude, cf, color, opts)
 end
 
 -- Cuña (WedgePart). La pendiente baja hacia -Z local.
@@ -216,6 +307,8 @@ function Kit:finish(info)
 		anchors = self.anchors,
 		attachments = self.attachments,
 		parts = self.partsByName,
+		eyes = self.eyes,
+		stage = 1,
 		radius = info.radius * unit,
 		height = info.height * unit,
 		center = info.center * unit,
@@ -278,6 +371,38 @@ function Visual:applyPoses()
 		end
 	end
 	table.clear(self.poses)
+end
+
+-- Parpadeo: a = 0 (abierto) .. 1 (cerrado). Se llama antes de applyPoses().
+function Visual:setBlink(a)
+	if a <= 0 then
+		return
+	end
+	for _, eye in ipairs(self.eyes) do
+		-- El desplazamiento va en el espacio local del ojo (-Z = hacia donde mira).
+		self:pose(eye.lid, CFrame.new(0, 0, -eye.blink * a), true)
+	end
+end
+
+-- Mirada: x, y en [-1, 1] (derecha / arriba de la criatura). Se llama antes de applyPoses().
+function Visual:setLook(x, y)
+	if x == 0 and y == 0 then
+		return
+	end
+	for _, eye in ipairs(self.eyes) do
+		self:pose(eye.iris, CFrame.new(x * eye.range, y * eye.range, 0), true)
+	end
+end
+
+-- Etapa de evolución (1..n): muestra las piezas cuya etapa ya se ha alcanzado.
+function Visual:setStage(stage)
+	self.stage = stage
+	for _, record in ipairs(self.records) do
+		if record.stage and record.stage > 1 then
+			record.hidden = record.stage > stage
+			record.part.Transparency = record.hidden and 1 or record.baseTransparency
+		end
+	end
 end
 
 function Visual:resetPoses()

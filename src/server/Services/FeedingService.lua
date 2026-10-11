@@ -93,14 +93,22 @@ function FeedingService.feed(session, creatureId, foodId, opts)
 	local mutated = services.MutationService.tryFeedMutation(session, creature, foodId)
 
 	local _, levelAfter = EconomyMath.scaleFromGrowth(creature.species, creature.growth, maxLevel)
+	local stageAfter = EconomyMath.stageFor(levelAfter)
+	local evolved = stageAfter > EconomyMath.stageFor(levelBefore)
 	services.CreatureService.refresh(session, creatureId)
 	local model = services.CreatureService.modelOf(session.userId, creatureId)
+	if evolved then
+		local species = CreatureConfig.Species[creature.species]
+		local stageName = CreatureConfig.StageNames[stageAfter] or "Evolved"
+		services.ValidationService.notify(session.player, string.format("%s evolved: %s form! Coin bonus up.", species.name, stageName), "reward", "🌟")
+	end
 	if model then
 		model:SetAttribute(Constants.CreatureAttr.EatingUntil, Clock.server() + food.consumeTime)
 		services.ValidationService.fireAll("CreatureEvent", model, "Fed", {
 			food = foodId,
 			duration = food.consumeTime,
 			leveledUp = levelAfter > levelBefore,
+			evolved = evolved and stageAfter or nil,
 			level = levelAfter,
 			first = first,
 			favorite = table.find(food.favoriteOf, creature.species) ~= nil,

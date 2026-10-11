@@ -13,8 +13,8 @@ CreatureConfig.Species = {
 		growthCost = 1, -- multiplicador del crecimiento necesario por nivel
 		value = 60,
 		maxScale = 2.2,
-		baseRadius = 2.6, -- radio aproximado del modelo a escala 1 (studs)
-		baseHeight = 5,
+		baseRadius = 2.5, -- radio aproximado del modelo a escala 1 (studs)
+		baseHeight = 4.9,
 		idle = "Bounce",
 	},
 	CHOMPITO = {
@@ -28,7 +28,7 @@ CreatureConfig.Species = {
 		value = 220,
 		maxScale = 2.3,
 		baseRadius = 2.4,
-		baseHeight = 4.6,
+		baseHeight = 5.3,
 		idle = "Waddle",
 	},
 	BANANOSAUR = {
@@ -41,8 +41,8 @@ CreatureConfig.Species = {
 		growthCost = 2.5,
 		value = 800,
 		maxScale = 2.2,
-		baseRadius = 2.8,
-		baseHeight = 6.5,
+		baseRadius = 2.7,
+		baseHeight = 6.9,
 		idle = "Sway",
 	},
 	TOILETINI = {
@@ -55,8 +55,8 @@ CreatureConfig.Species = {
 		growthCost = 4,
 		value = 3200,
 		maxScale = 2.1,
-		baseRadius = 2.7,
-		baseHeight = 6,
+		baseRadius = 2.5,
+		baseHeight = 7.4,
 		idle = "Wiggle",
 	},
 	GLORB = {
@@ -69,8 +69,8 @@ CreatureConfig.Species = {
 		growthCost = 7,
 		value = 14000,
 		maxScale = 2.3,
-		baseRadius = 2.8,
-		baseHeight = 6.2,
+		baseRadius = 2.5,
+		baseHeight = 7.0,
 		idle = "Float",
 	},
 	NULLABYTE = {
@@ -91,6 +91,12 @@ CreatureConfig.Species = {
 
 -- Orden de presentación en la colección.
 CreatureConfig.Order = { "GOBBLO", "CHOMPITO", "BANANOSAUR", "TOILETINI", "GLORB", "NULLABYTE" }
+
+-- Evolución: al alcanzar estos niveles la criatura pasa a la etapa siguiente (2, 3...). Cada
+-- especie define qué piezas aparecen en cada etapa; aquí solo viven los umbrales y el bonus.
+CreatureConfig.EvolutionLevels = { 15, 35 }
+CreatureConfig.StageIncomeMult = { 1, 1.25, 1.6 }
+CreatureConfig.StageNames = { "Baby", "Evolved", "Apex" }
 
 CreatureConfig.BaseMaxLevel = 50
 CreatureConfig.MaxLevelPerRebirth = 5

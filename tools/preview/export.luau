@@ -16,6 +16,10 @@ local function partData(part, extra)
 	elseif part.ClassName == "SpawnLocation" then
 		shape = "Block"
 	end
+	local mesh = part:FindFirstChildOfClass("SpecialMesh")
+	if mesh and mesh.MeshType.Name == "Sphere" then
+		shape = "Ellipsoid"
+	end
 	local data = {
 		name = part.Name,
 		shape = shape,

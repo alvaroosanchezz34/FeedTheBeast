@@ -1,95 +1,100 @@
--- BANANOSAUR — un dinosaurio con cuerpo de plátano curvado, cola y brazos de piel de plátano.
+-- BANANOSAUR — un tiranosaurio con piel de plátano: cabezón, brazos ridículos, cola larga con
+-- la punta marrón y un collar de cáscara a medio pelar.
 local Anim = require(script.Parent.Parent.Anim)
 local V = Vector3.new
 local rgb = Color3.fromRGB
 local rot = Anim.rot
 
-local YELLOW = rgb(255, 222, 64)
-local DEEP = rgb(232, 184, 40)
-local PALE = rgb(255, 242, 176)
-local BROWN = rgb(112, 72, 34)
-local LEAF = rgb(96, 176, 74)
+local YELLOW = rgb(255, 220, 66)
+local DEEP = rgb(236, 184, 44)
+local PALE = rgb(255, 244, 186)
+local BROWN = rgb(116, 76, 38)
+local LEAF = rgb(104, 184, 80)
+local MOUTH = rgb(120, 30, 44)
 local WHITE = rgb(252, 252, 246)
 
 local Bananosaur = { unit = 0.8 }
 
 function Bananosaur.build(kit)
-	-- Patas
 	for _, side in ipairs({ { "L", -1 }, { "R", 1 } }) do
 		local name, sx = side[1], side[2]
-		local leg = kit:cyl("Leg" .. name, 1.1, 1.9, V(sx * 0.9, 0.95, 0.2), DEEP, {
-			role = "Accent", joint = "Leg" .. name, pivot = V(sx * 0.9, 1.9, 0.2),
-		})
-		kit:block("Foot" .. name, V(1.3, 0.4, 1.9), V(sx * 0.9, 0.2, -0.3), BROWN, { role = "Detail", parent = leg })
+		local thigh = kit:blob("Thigh" .. name, V(1.7, 2.6, 2.1), V(sx * 1.2, 1.6, 0.45), DEEP, { role = "Accent", joint = "Leg" .. name, pivot = V(sx * 1.2, 2.6, 0.45) })
+		kit:blob("Foot" .. name, V(1.6, 0.8, 2.5), V(sx * 1.2, 0.4, -0.3), BROWN, { role = "Detail", parent = thigh })
 	end
-	-- Cuerpo curvado (segmentos)
-	local s1 = kit:ball("Seg1", 3.0, V(0, 2.6, 0.2), YELLOW, { role = "Body", shadow = true })
-	local s2 = kit:ball("Seg2", 2.8, V(0, 3.9, -0.25), YELLOW, { role = "Body", joint = "Torso", pivot = V(0, 3.0, 0), shadow = true })
-	kit:ball("Seg3", 2.5, V(0, 5.0, -0.55), YELLOW, { role = "Body", parent = s2 })
-	local neck = kit:ball("Neck", 2.1, V(0, 5.9, -1.0), YELLOW, { role = "Body", parent = s2 })
-	kit:ball("BellyStripe", 2.4, V(0, 3.45, -0.72), PALE, { role = "Belly", parent = s2 })
-	kit:ball("BellyLow", 2.3, V(0, 2.4, -0.45), PALE, { role = "Belly", parent = s1 })
-	-- Cabeza articulada
-	local head = kit:block("Snout", V(1.7, 1.25, 2.5), V(0, 6.75, -2.0), YELLOW, {
-		role = "Body", parent = neck, joint = "Head", pivot = V(0, 6.1, -0.9),
-	})
-	kit:block("LowerJaw", V(1.45, 0.4, 2.1), V(0, 5.92, -2.05), DEEP, {
-		role = "Accent", parent = head, joint = "Jaw", pivot = V(0, 6.1, -1.0),
-	})
-	kit:ball("NoseTip", 0.95, V(0, 6.85, -3.25), BROWN, { role = "Detail", parent = head })
-	for i, x in ipairs({ -0.5, 0, 0.5 }) do
-		kit:block("Tooth" .. i, V(0.3, 0.35, 0.3), V(x, 6.02, -3.0), WHITE, { role = "Teeth", parent = head })
+	local torso = kit:blob("Torso", V(3.4, 4.2, 3.9), CFrame.new(0, 3.6, 0.35) * rot(-12, 0, 0), YELLOW, { role = "Body", shadow = true, joint = "Torso", pivot = V(0, 2.2, 0.4) })
+	kit:blob("Belly", V(2.4, 3.2, 1.5), CFrame.new(0, 3.35, -1.05) * rot(-12, 0, 0), PALE, { role = "Belly", parent = torso })
+	-- Cola: tres tramos que se estrechan, con la punta marrón del plátano.
+	local tail = kit:blob("Tail1", V(2.1, 1.9, 3.0), CFrame.new(0, 2.7, 2.35) * rot(10, 0, 0), YELLOW, { role = "Body", parent = torso, joint = "Tail", pivot = V(0, 2.7, 1.3) })
+	local tail2 = kit:blob("Tail2", V(1.4, 1.3, 2.4), CFrame.new(0, 3.15, 4.15) * rot(18, 0, 0), YELLOW, { role = "Body", parent = tail, joint = "Tail2", pivot = V(0, 2.95, 3.3) })
+	kit:blob("TailTip", V(0.85, 0.8, 1.2), CFrame.new(0, 3.65, 5.25) * rot(24, 0, 0), BROWN, { role = "Detail", parent = tail2 })
+	local neck = kit:blob("Neck", V(2.3, 2.6, 2.3), V(0, 5.45, -0.55), YELLOW, { role = "Body", parent = torso })
+	-- Cabeza grande con hocico y mandíbula articulada.
+	local head = kit:blob("Head", V(2.9, 2.6, 4.0), V(0, 6.75, -1.75), YELLOW, { role = "Body", parent = neck, joint = "Head", pivot = V(0, 6.1, -0.6), shadow = true })
+	kit:blob("SnoutTip", V(1.7, 1.3, 1.1), V(0, 6.8, -3.4), BROWN, { role = "Detail", parent = head })
+	kit:blob("Mouth", V(2.2, 0.8, 3.2), V(0, 6.0, -1.9), MOUTH, { role = "Mouth", parent = head })
+	for i, def in ipairs({ { -0.75, -3.05 }, { 0.75, -3.05 }, { -0.98, -2.3 }, { 0.98, -2.3 }, { -1.02, -1.5 }, { 1.02, -1.5 } }) do
+		kit:blob("Tooth" .. i, V(0.36, 0.6, 0.36), V(def[1], 5.85, def[2]), WHITE, { role = "Teeth", parent = head })
 	end
-	kit:eye("EyeL", 1.1, V(-0.82, 7.45, -1.5), { parent = head, dir = V(-0.35, 0, -1) })
-	kit:eye("EyeR", 1.1, V(0.82, 7.45, -1.5), { parent = head, dir = V(0.35, 0, -1) })
-	kit:cyl("Stem", 0.5, 1.0, CFrame.new(0, 7.65, -0.95) * rot(20, 0, 0), BROWN, { role = "Detail", parent = head })
-	-- Brazos de piel de plátano
+	local jaw = kit:blob("Jaw", V(2.3, 0.9, 3.4), V(0, 5.55, -1.85), DEEP, { role = "Accent", parent = head, joint = "Jaw", pivot = V(0, 5.9, -0.5) })
+	kit:blob("Tongue", V(1.1, 0.35, 2.0), V(0, 5.95, -2.0), rgb(255, 124, 150), { role = "Tongue", parent = jaw })
 	for _, side in ipairs({ { "L", -1 }, { "R", 1 } }) do
 		local name, sx = side[1], side[2]
-		kit:wedge("Peel" .. name, V(0.3, 1.7, 1.0), CFrame.new(sx * 1.65, 4.2, -0.45) * rot(0, 0, sx * 28), PALE, {
-			role = "Accent", parent = s2, joint = "Arm" .. name, pivot = V(sx * 1.3, 4.95, -0.4),
-		})
+		kit:eyeball("Eye" .. name, 1.15, V(sx * 1.08, 7.35, -1.55), { parent = head, dir = V(sx * 0.8, 0.25, -0.7), lid = YELLOW })
+		kit:blob("Arm" .. name, V(0.55, 0.55, 1.3), CFrame.new(sx * 1.25, 4.2, -1.55) * rot(25, 0, 0), DEEP, { role = "Accent", parent = torso, joint = "Arm" .. name, pivot = V(sx * 1.25, 4.4, -1.0) })
+		-- Cáscara pelada cayendo sobre los hombros.
+		kit:blob("Peel" .. name, V(1.9, 0.4, 2.3), CFrame.new(sx * 1.75, 4.95, -0.2) * rot(0, 0, -sx * 48), PALE, { role = "Accent", parent = torso, joint = "Peel" .. name, pivot = V(sx * 1.1, 5.5, -0.2) })
 	end
-	-- Cola
-	local tail = kit:ball("Tail1", 1.7, V(0, 2.0, 1.6), YELLOW, { role = "Body", parent = s1, joint = "Tail", pivot = V(0, 2.2, 0.9) })
-	kit:ball("Tail2", 1.2, V(0, 1.75, 2.5), YELLOW, { role = "Body", parent = tail })
-	kit:ball("Tail3", 0.8, V(0, 1.65, 3.1), DEEP, { role = "Accent", parent = tail })
-	kit:ball("TailTip", 0.5, V(0, 1.65, 3.5), BROWN, { role = "Detail", parent = tail })
-	-- Púas dorsales
-	for i = 0, 3 do
-		kit:wedge("Spike" .. i, V(0.3, 0.85, 0.85), CFrame.new(0, 3.2 + i * 0.95, 1.25 - i * 0.3) * rot(-20, 180, 0), LEAF, {
-			role = "Detail", parent = i == 0 and s1 or s2,
-		})
+	kit:blob("PeelBack", V(2.0, 0.4, 2.2), CFrame.new(0, 5.05, 1.55) * rot(-50, 0, 0), PALE, { role = "Accent", parent = torso })
+	kit:cyl("Stem", 0.5, 0.9, CFrame.new(0, 8.15, -1.2) * rot(18, 0, 0), BROWN, { role = "Detail", parent = head })
+	for i = 0, 2 do
+		kit:blob("Spike" .. i, V(0.45, 1.0, 1.1), CFrame.new(0, 5.05 - i * 0.95, 2.05 + i * 0.25) * rot(-35, 0, 0), LEAF, { role = "Detail", parent = torso })
 	end
+	-- Evolución: cresta en la cabeza (etapa 2) y cuerno en el hocico (etapa 3).
+	for i = 0, 2 do
+		kit:blob("Crest" .. i, V(0.45, 1.1 - i * 0.2, 1.0), CFrame.new(0, 8.1 - i * 0.25, -0.5 + i * 0.75) * rot(-30, 0, 0), LEAF, { role = "Detail", parent = head, stage = 2 })
+	end
+	kit:blob("Horn", V(0.6, 1.4, 0.6), CFrame.new(0, 7.75, -3.05) * rot(-20, 0, 0), PALE, { role = "Detail", parent = head, stage = 3 })
 
-	kit:anchor("Mouth", V(0, 6.2, -3.3))
-	kit:anchor("Head", V(0, 6.9, -1.8))
-	kit:anchor("Top", V(0, 8.4, -0.8))
-	kit:anchor("AuraAnchor", V(0, 3.9, 0))
+	kit:anchor("Mouth", V(0, 6.0, -3.9))
+	kit:anchor("Head", V(0, 6.9, -2.0))
+	kit:anchor("Top", V(0, 8.9, -1))
+	kit:anchor("AuraAnchor", V(0, 3.9, 0.3))
 	kit:anchor("Ground", V(0, 0.05, 0), kit.root)
-	return { radius = 3.6, height = 8.2, center = V(0, 3.9, 0) }
+	return { radius = 3.4, height = 8.6, center = V(0, 3.9, 0.3) }
 end
 
--- Idle "Sway": se mece despacio, asiente con la cabeza y menea la cola.
+-- Idle: se mece, olfatea con la cabeza y la cola le sirve de contrapeso.
 function Bananosaur.idle(v, t)
-	local sway = math.sin(t * 1.6)
-	v:pose("Body", rot(0, 0, sway * 2.5))
-	v:pose("Torso", rot(math.sin(t * 1.6 + 1) * 3, 0, sway * 4))
-	v:pose("Head", rot(math.sin(t * 3.2) * 6, sway * 10, 0))
-	v:pose("Jaw", rot(-3 - math.max(0, math.sin(t * 0.8)) * 6, 0, 0))
-	v:pose("Tail", rot(0, math.sin(t * 2.4) * 22, 0))
-	v:pose("ArmL", rot(0, 0, math.sin(t * 3.2) * 10))
-	v:pose("ArmR", rot(0, 0, -math.sin(t * 3.2 + 0.7) * 10))
+	local sway = math.sin(t * 1.5)
+	v:pose("Torso", CFrame.new(0, math.sin(t * 2.1) * 0.06, 0) * rot(math.sin(t * 1.5 + 1) * 2, 0, sway * 2.5))
+	v:pose("Head", rot(math.sin(t * 2.6) * 5, sway * 12, 0))
+	v:pose("Jaw", rot(-2 - math.max(0, math.sin(t * 0.9)) * 5, 0, 0))
+	v:pose("Tail", rot(0, math.sin(t * 2.2) * 18, 0))
+	v:pose("Tail2", rot(0, math.sin(t * 2.2 - 0.9) * 22, 0))
+	v:pose("ArmL", rot(math.sin(t * 4) * 14, 0, 0))
+	v:pose("ArmR", rot(math.sin(t * 4 + 1.3) * 14, 0, 0))
+	v:pose("PeelL", rot(0, 0, math.sin(t * 2.1) * 5))
+	v:pose("PeelR", rot(0, 0, -math.sin(t * 2.1) * 5))
 end
 
 function Bananosaur.eat(v, a)
 	local open = Anim.chomp(a, 3)
 	local dip = Anim.bump(a, 0.25)
-	v:pose("Torso", rot(-14 * dip, 0, 0))
-	v:pose("Head", rot(-18 * dip + open * 6, 0, 0))
-	v:pose("Jaw", rot(-open * 34, 0, 0))
-	v:pose("ArmL", rot(0, 0, -30 * open))
-	v:pose("ArmR", rot(0, 0, 30 * open))
+	v:pose("Torso", rot(-10 * dip, 0, 0), true)
+	v:pose("Head", rot(-14 * dip + open * 8, 0, 0))
+	v:pose("Jaw", rot(-open * 32, 0, 0))
+	v:pose("ArmL", rot(-40 * open, 0, 0))
+	v:pose("ArmR", rot(-40 * open, 0, 0))
+end
+
+-- Satisfacción: rugido de felicidad hacia el cielo.
+function Bananosaur.happy(v, a)
+	local up = Anim.bump(a, 0.3)
+	v:pose("Head", rot(26 * up, 0, 0), true)
+	v:pose("Jaw", rot(-28 * up, 0, 0))
+	v:pose("Tail", rot(10 * up, math.sin(a * math.pi * 6) * 25, 0))
+	v:pose("PeelL", rot(0, 0, 25 * up), true)
+	v:pose("PeelR", rot(0, 0, -25 * up), true)
 end
 
 return Bananosaur

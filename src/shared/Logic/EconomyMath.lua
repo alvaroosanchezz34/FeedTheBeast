@@ -85,6 +85,17 @@ function EconomyMath.hitboxScale(scale)
 	return math.min(scale, CreatureConfig.HitboxMaxScale)
 end
 
+-- Etapa de evolución (1..n) para un nivel.
+function EconomyMath.stageFor(level)
+	local stage = 1
+	for _, threshold in ipairs(CreatureConfig.EvolutionLevels) do
+		if (level or 0) >= threshold then
+			stage += 1
+		end
+	end
+	return stage
+end
+
 function EconomyMath.creatureIncome(creature, maxLevel)
 	local species = CreatureConfig.Species[creature.species]
 	if not species then
@@ -92,7 +103,8 @@ function EconomyMath.creatureIncome(creature, maxLevel)
 	end
 	local mutation = MutationConfig.Mutations[creature.mutation] or MutationConfig.Mutations.NORMAL
 	local level = EconomyMath.levelFromGrowth(creature.species, creature.growth or 0, maxLevel)
-	return species.baseIncome * (1 + level * EconomyConfig.IncomePerLevel) * mutation.incomeMult
+	local stageMult = CreatureConfig.StageIncomeMult[EconomyMath.stageFor(level)] or 1
+	return species.baseIncome * (1 + level * EconomyConfig.IncomePerLevel) * mutation.incomeMult * stageMult
 end
 
 local function upgradeLevel(profile, id)

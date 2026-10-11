@@ -8,6 +8,7 @@
 --   CreatureController.pop(model, amount)           -- pulso de escala
 --   CreatureController.entries() -> tabla clave -> entrada
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -40,6 +41,23 @@ local entries = {} -- clave -> entrada
 local order = {}
 local lodTimer = math.huge
 local frameAccumulator = 0
+
+local LOOK_DISTANCE = 34
+local EXCITED_DISTANCE = 16
+local BLINK_TIME = 0.16
+local HAPPY_TIME = 0.9
+
+local function localRootPosition()
+	local player = Players.LocalPlayer
+	local character = player and player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	return root and root.CFrame.Position or nil
+end
+
+local function hasFood()
+	local inventory = StateController.get("inventory")
+	return inventory ~= nil and next(inventory) ~= nil
+end
 
 local function keyOf(model)
 	local id = model:GetAttribute(A.Id)
@@ -98,7 +116,8 @@ local function refreshNameplate(entry)
 	if entry.isGiant then
 		table.insert(parts, "Feed me!")
 	else
-		table.insert(parts, "Lv " .. tostring(entry.level))
+		local stage = EconomyMath.stageFor(entry.level)
+		table.insert(parts, (stage > 1 and string.rep("★", stage - 1) .. " " or "") .. "Lv " .. tostring(entry.level))
 	end
 	if mutation and mutation.id ~= "NORMAL" then
 		table.insert(parts, "· " .. string.upper(mutation.name))
@@ -224,12 +243,19 @@ local function buildEntry(model)
 		eat = nil,
 		growAfter = nil,
 		animTime = math.random() * 10,
+		seed = math.random() * 6.28,
+		tempo = 0.88 + math.random() * 0.24,
+		lookX = 0,
+		lookY = 0,
+		blinkIn = 1 + math.random() * 3,
+		happy = nil,
 		near = true,
 		connections = {},
 	}
 	entry.isOwn = entry.ownerId == StateController.localUserId()
 
 	MutationVisuals.apply(visual, entry.mutationId)
+	visual:setStage(entry.isGiant and 1 or EconomyMath.stageFor(entry.level))
 	visual.model.Parent = model
 	applyScale(entry, scale)
 	makeNameplate(entry)
@@ -250,6 +276,10 @@ local function buildEntry(model)
 	end))
 	table.insert(entry.connections, model:GetAttributeChangedSignal(A.Level):Connect(function()
 		entry.level = model:GetAttribute(A.Level) or 0
+		local stage = EconomyMath.stageFor(entry.level)
+		if stage ~= visual.stage then
+			visual:setStage(stage)
+		end
 		refreshNameplate(entry)
 	end))
 	table.insert(entry.connections, model:GetAttributeChangedSignal(A.Mutation):Connect(function()
@@ -342,7 +372,9 @@ local function onCreatureEvent(model, kind, data)
 		if extra then
 			EffectsController.play(extra, { model = model })
 		end
-		if data.first then
+		if data.evolved then
+			entry.growAfter = { delay = duration, effect = "Evolve" }
+		elseif data.first then
 			entry.growAfter = { delay = duration, effect = "FirstFeed" }
 		elseif data.leveledUp then
 			entry.growAfter = { delay = duration, effect = VFXConfig.MutationGrowEffects[entry.mutationId] or "Grow" }
@@ -376,6 +408,8 @@ local function updateEntry(entry, dt, animate)
 		if eating.elapsed >= eating.duration then
 			entry.eat = nil
 			eating = nil
+			-- Reacción de satisfacción al terminar de comer.
+			entry.happy = { elapsed = 0, duration = HAPPY_TIME }
 		end
 	end
 	if entry.growAfter then
@@ -401,16 +435,69 @@ local function updateEntry(entry, dt, animate)
 	end
 
 	if animate then
-		local mutation = MutationConfig.Mutations[entry.mutationId]
-		entry.animTime += dt * (mutation and mutation.animSpeed or 1)
+		local visual = entry.visual
 		local species = entry.species
+		local mutation = MutationConfig.Mutations[entry.mutationId]
+
+		-- Atención al jugador: lo sigue con la mirada y se anima si llega con comida.
+		local lookX, lookY, excited = 0, 0, false
+		local target = localRootPosition()
+		if target then
+			local rel = visual.root.CFrame:PointToObjectSpace(target)
+			local distance = rel.Magnitude
+			if distance < LOOK_DISTANCE then
+				lookX = math.clamp(rel.X / 9, -1, 1)
+				lookY = math.clamp((rel.Y - visual.height * entry.displayScale * 0.6) / 9, -1, 1)
+				excited = entry.isOwn and distance < EXCITED_DISTANCE and hasFood()
+			end
+		end
+		if lookX == 0 and lookY == 0 then
+			-- Sin nadie cerca, la mirada vaga despacio.
+			lookX = math.sin(entry.animTime * 0.6 + entry.seed) * 0.6
+			lookY = math.sin(entry.animTime * 0.43 + entry.seed * 2) * 0.3
+		end
+		local blend = math.min(1, dt * 6)
+		entry.lookX += (lookX - entry.lookX) * blend
+		entry.lookY += (lookY - entry.lookY) * blend
+
+		-- Cada criatura lleva su propio ritmo (no se mueven sincronizadas).
+		local speed = (mutation and mutation.animSpeed or 1) * entry.tempo * (excited and 1.6 or 1)
+		entry.animTime += dt * speed
 		if species.idle then
-			species.idle(entry.visual, entry.animTime)
+			species.idle(visual, entry.animTime)
 		end
 		if eating and species.eat then
-			species.eat(entry.visual, eating.elapsed / eating.duration)
+			species.eat(visual, eating.elapsed / eating.duration)
 		end
-		entry.visual:applyPoses()
+		local happy = entry.happy
+		if happy then
+			happy.elapsed += dt
+			local a = happy.elapsed / happy.duration
+			if a >= 1 then
+				entry.happy = nil
+				happy = nil
+			elseif species.happy then
+				species.happy(visual, a)
+			end
+		end
+
+		-- Parpadeo: breve, a intervalos irregulares; ojos entrecerrados de gusto tras comer.
+		entry.blinkIn -= dt
+		local blink = 0
+		if entry.blinkIn <= 0 then
+			local a = -entry.blinkIn / BLINK_TIME
+			if a >= 1 then
+				entry.blinkIn = 1.8 + math.random() * 3.6
+			else
+				blink = math.sin(a * math.pi)
+			end
+		end
+		if happy then
+			blink = math.max(blink, 0.55 * math.sin(math.min(1, happy.elapsed / happy.duration) * math.pi))
+		end
+		visual:setLook(entry.lookX, entry.lookY)
+		visual:setBlink(blink)
+		visual:applyPoses()
 	end
 end
 
@@ -478,6 +565,7 @@ function CreatureController.Update(dt)
 			-- se reproduzcan con retraso al acercarse, y el tamaño salta al valor final.
 			entry.eat = nil
 			entry.growAfter = nil
+			entry.happy = nil
 			if #entry.pops > 0 then
 				table.clear(entry.pops)
 			end
