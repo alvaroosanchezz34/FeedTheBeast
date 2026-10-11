@@ -1,0 +1,105 @@
+--!nocheck
+-- Exporta a JSON la geometría de las criaturas (todas las especies x mutaciones) y del mapa,
+-- usando el código real del juego, para dibujar una previsualización APROXIMADA fuera de Roblox.
+--   lune run tools/preview/export        (desde la raíz del repo)  ->  build/preview/*.json
+-- Después:  python3 tools/preview/render.py
+local fs = require("@lune/fs")
+local serde = require("@lune/serde")
+local Harness = require("../../tests/lib/Harness")
+
+local function partData(part, extra)
+	local shape = "Block"
+	if part.ClassName == "WedgePart" then
+		shape = "Wedge"
+	elseif part.ClassName == "Part" then
+		shape = part.Shape.Name
+	elseif part.ClassName == "SpawnLocation" then
+		shape = "Block"
+	end
+	local data = {
+		name = part.Name,
+		shape = shape,
+		size = { part.Size.X, part.Size.Y, part.Size.Z },
+		cf = { part.CFrame:GetComponents() },
+		color = { part.Color.R, part.Color.G, part.Color.B },
+		material = part.Material.Name,
+		transparency = part.Transparency,
+	}
+	if extra then
+		for key, value in pairs(extra) do
+			data[key] = value
+		end
+	end
+	return data
+end
+
+return function()
+	local h = Harness.new({})
+	local s = h:bootServer()
+	local Shared = "ReplicatedStorage.Shared."
+	local Builder = h:require(Shared .. "Creatures.CreatureBuilder")
+	local MutationVisuals = h:require(Shared .. "Creatures.MutationVisuals")
+	local CreatureConfig = h:require(Shared .. "Config.CreatureConfig")
+	local MutationConfig = h:require(Shared .. "Config.MutationConfig")
+
+	if not fs.isDir("build/preview") then
+		fs.writeDir("build/preview")
+	end
+
+	-- Resuelve las soldaduras como lo haría el motor.
+	local function solve(visual)
+		for _, record in ipairs(visual.records) do
+			local weld = record.weld
+			weld.Part1.CFrame = weld.Part0.CFrame * weld.C0 * weld.C1:Inverse()
+		end
+	end
+
+	local creatures = {}
+	for _, speciesId in ipairs(CreatureConfig.Order) do
+		for _, mutationId in ipairs(MutationConfig.Order) do
+			for _, pose in ipairs({ "idle", "eat" }) do
+				if pose == "idle" or mutationId == "NORMAL" then
+					local visual = Builder.build(speciesId)
+					MutationVisuals.apply(visual, mutationId)
+					visual.species.idle(visual, 0.9)
+					if pose == "eat" then
+						visual.species.eat(visual, 0.17)
+					end
+					visual:applyPoses()
+					solve(visual)
+					local parts = {}
+					for _, record in ipairs(visual.records) do
+						if record.part.Transparency < 1 then
+							table.insert(parts, partData(record.part, { role = record.role }))
+						end
+					end
+					table.insert(creatures, {
+						species = speciesId,
+						name = CreatureConfig.Species[speciesId].name,
+						rarity = CreatureConfig.Species[speciesId].rarity,
+						mutation = mutationId,
+						pose = pose,
+						height = visual.height,
+						radius = visual.radius,
+						parts = parts,
+					})
+					visual:destroy()
+				end
+			end
+		end
+	end
+	fs.writeFile("build/preview/creatures.json", serde.encode("json", creatures))
+
+	-- Mapa: todas las piezas visibles que construye el servidor, con un jugador por parcela.
+	for i = 1, 3 do
+		h:joinPlayer(i, "P" .. i)
+	end
+	local world = {}
+	for _, d in ipairs(h.game:GetService("Workspace"):GetDescendants()) do
+		if d:IsA("BasePart") and d.Transparency < 1 and d.Name ~= "HumanoidRootPart" then
+			table.insert(world, partData(d))
+		end
+	end
+	fs.writeFile("build/preview/world.json", serde.encode("json", world))
+	print(string.format("exported %d creature views and %d world parts to build/preview/", #creatures, #world))
+end

@@ -74,8 +74,8 @@ MutationConfig.Mutations = {
 		color = Color3.fromRGB(190, 110, 255),
 		aura = "COSMIC",
 		visual = {
-			Body = { color = Color3.fromRGB(28, 16, 64), material = Enum.Material.Glass, reflectance = 0.15 },
-			Belly = { color = Color3.fromRGB(120, 60, 220), material = Enum.Material.Neon },
+			Body = { color = Color3.fromRGB(56, 32, 132), material = Enum.Material.Glass, reflectance = 0.15 },
+			Belly = { color = Color3.fromRGB(132, 72, 236), material = Enum.Material.Neon },
 			Accent = { color = Color3.fromRGB(255, 110, 220), material = Enum.Material.Neon },
 			Detail = { color = Color3.fromRGB(140, 240, 255), material = Enum.Material.Neon },
 		},

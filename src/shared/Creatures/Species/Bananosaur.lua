@@ -40,8 +40,8 @@ function Bananosaur.build(kit)
 	for i, x in ipairs({ -0.5, 0, 0.5 }) do
 		kit:block("Tooth" .. i, V(0.3, 0.35, 0.3), V(x, 6.02, -3.0), WHITE, { role = "Teeth", parent = head })
 	end
-	kit:eye("EyeL", 0.8, V(-0.78, 7.35, -1.5), { parent = head, dir = V(-0.35, 0, -1) })
-	kit:eye("EyeR", 0.8, V(0.78, 7.35, -1.5), { parent = head, dir = V(0.35, 0, -1) })
+	kit:eye("EyeL", 1.1, V(-0.82, 7.45, -1.5), { parent = head, dir = V(-0.35, 0, -1) })
+	kit:eye("EyeR", 1.1, V(0.82, 7.45, -1.5), { parent = head, dir = V(0.35, 0, -1) })
 	kit:cyl("Stem", 0.5, 1.0, CFrame.new(0, 7.65, -0.95) * rot(20, 0, 0), BROWN, { role = "Detail", parent = head })
 	-- Brazos de piel de plátano
 	for _, side in ipairs({ { "L", -1 }, { "R", 1 } }) do

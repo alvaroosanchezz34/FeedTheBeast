@@ -1005,6 +1005,24 @@ function Harness:run(path)
 	return self:require(path)
 end
 
+-- Lune no simula física: las piezas unidas con `Weld` no siguen a su Part0. Esta pasada coloca
+-- cada Part1 donde la pondría el motor (Part0.CFrame * C0 * C1^-1) para los modelos visuales de
+-- las criaturas, de modo que anclajes, auras y efectos se calculen en su posición real.
+function Harness:solveWelds()
+	local folder = self.game:GetService("Workspace"):FindFirstChild("FTB_Creatures")
+	if not folder then
+		return
+	end
+	for _, d in ipairs(folder:GetDescendants()) do
+		if d.ClassName == "Weld" then
+			local p0, p1 = d.Part0, d.Part1
+			if p0 and p1 then
+				p1.CFrame = p0.CFrame * d.C0 * d.C1:Inverse()
+			end
+		end
+	end
+end
+
 -- Emite las señales de cambio pendientes (atributos, propiedades, instancias eliminadas).
 function Harness:sweep()
 	for _, state in pairs(instanceState) do
@@ -1042,6 +1060,9 @@ function Harness:_recordSend(target, name, args, remote)
 	table.insert(self.sent, { to = target, name = name, args = args })
 	-- Con un cliente arrancado en el mismo DataModel, los mensajes del servidor le llegan de verdad.
 	if self.clientBooted and remote and self.localPlayer and (target == "all" or target == self.localPlayer.UserId) then
+		-- Como en Roblox, la eliminación de instancias llega al cliente antes que los eventos
+		-- remotos posteriores.
+		self.services.CollectionService:sweep()
 		signalOf(remote, "OnClientEvent"):Fire(table.unpack(args, 1, args.n))
 	end
 end
@@ -1263,6 +1284,7 @@ function Harness:frame(dt, steps)
 	current = self
 	for _ = 1, steps or 1 do
 		self:advance(dt)
+		self:solveWelds()
 		self.runService.RenderStepped:Fire(dt)
 		luneTask.wait(0)
 		self:sweep()
@@ -1279,6 +1301,7 @@ function Harness:tick(dt, steps)
 		luneTask.wait(0)
 		self:sweep()
 		luneTask.wait(0)
+		self:solveWelds()
 		self.runService.RenderStepped:Fire(dt)
 		luneTask.wait(0)
 	end
