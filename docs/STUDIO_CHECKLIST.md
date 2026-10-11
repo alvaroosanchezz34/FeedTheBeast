@@ -23,6 +23,9 @@ Nada de esto se ha podido ejecutar fuera de Roblox. Orden recomendado.
 ## 4. Interfaz
 - [ ] Emuladores de dispositivo (iPhone, iPad, 1080p): nada se solapa ni se sale; botones cómodos; el joystick y el salto quedan libres.
 - [ ] Los emoji de iconos se ven en todas las plataformas (si no, sustituir por imágenes).
+- [ ] El menú lateral (5 botones con TASKS) no tapa nada en móvil horizontal pequeño.
+- [ ] Ventana TASKS: barras, botón CLAIM, cuenta atrás y premio extra; el "!" del botón aparece al completar una tarea.
+- [ ] Los iconos 3D de comida (barra y tienda) se ven centrados y con buena luz.
 - [ ] Retratos 3D en BEASTS, COLLECTION y la tarjeta de eclosión bien encuadrados.
 - [ ] Renacer: dos pantallas, el botón final tarda ~1,5 s en activarse.
 
@@ -44,3 +47,13 @@ Nada de esto se ha podido ejecutar fuera de Roblox. Orden recomendado.
 - [ ] `GameConfig.Admins.UserIds` con tus IDs; decidir `AllowInStudio` / `AllowPlaceCreator`.
 - [ ] Máximo de jugadores del lugar = 8.
 - [ ] Assets e IDs de `docs/ASSETS_PENDIENTES.md` y `docs/MONETIZACION.md`.
+
+## 9. Ampliación visual (sin verificar en Studio)
+- [ ] Aviso de iluminación: el proyecto fija `Lighting.Technology = ShadowMap`; el aviso de "Compatibilidad → Vóxel" es informativo. Comprobar que el mapa no queda quemado ni oscuro (Atmosphere, ColorCorrection, Bloom en `WorldBuilder.setupLighting`).
+- [ ] Criaturas: los elipsoides (`SpecialMesh`) se ven lisos y sin solapes raros; los ojos miran al jugador al acercarse, parpadean y no atraviesan la cabeza; la boca se abre al comer.
+- [ ] Las mutaciones (materiales Neon/Glass/ForceField) se ven bien sobre `SpecialMesh` (el material puede comportarse distinto que en una pieza normal).
+- [ ] Evolución: al llegar a nivel 15 y 35 aparecen las piezas nuevas (cuernos, corona, capa…), suena/brilla el efecto y sube la producción.
+- [ ] Crecimiento: una criatura a nivel alto no atraviesa la valla ni a sus vecinas.
+- [ ] Comida: cada uno de los 20 modelos se reconoce a la distancia de juego, flota, gira despacio y tiene sombra en el suelo; la comida vuela hasta la boca al dar de comer.
+- [ ] Mapa: se puede caminar por todo sin atascos (arcos de entrada, vallas, puestos, farolas); nada flota ni se hunde; las colinas del fondo no se ven cortadas.
+- [ ] Rendimiento con 8 jugadores y parcelas llenas en móvil de gama baja (≈1.700 piezas de mapa + criaturas + comida).

@@ -405,6 +405,7 @@ local function reward(session, entry, stolen)
 	coins = math.floor(coins + overflowCoins)
 	services.EconomyService.addCoins(session.userId, coins)
 	profile.stats.cratesDelivered += 1
+	services.QuestService.progress(session, "CrateDelivered", 1)
 	services.StateService.push(session.userId, "stats")
 
 	local parts = {}

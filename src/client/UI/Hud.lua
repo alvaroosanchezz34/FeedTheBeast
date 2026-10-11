@@ -16,6 +16,7 @@ local EconomyMath = require(Shared.Logic.EconomyMath)
 local Utilities = require(Shared.Utilities)
 
 local Theme = require(script.Parent.Theme)
+local TasksWindow = require(script.Parent.TasksWindow)
 local FoodIcon = require(script.Parent.FoodIcon)
 
 local Hud = {}
@@ -104,8 +105,8 @@ function Hud.create(ctx)
 			icon = icon,
 			text = text,
 			color = color,
-			size = UDim2.fromOffset(150, 58),
-			textSize = 19,
+			size = UDim2.fromOffset(150, 52),
+			textSize = 18,
 			order = order,
 			onClick = function()
 				ctx.toggle(id)
@@ -119,8 +120,9 @@ function Hud.create(ctx)
 	end
 	menuButton("shop", "🛒", "SHOP", C.Orange, 1)
 	menuButton("beasts", "🐾", "BEASTS", C.Blue, 2)
-	menuButton("upgrades", "⬆️", "UPGRADES", C.Green, 3)
-	menuButton("rebirth", "🔥", "REBIRTH", C.Pink, 4)
+	menuButton("tasks", "📋", "TASKS", C.Purple or C.Blue, 3)
+	menuButton("upgrades", "⬆️", "UPGRADES", C.Green, 4)
+	menuButton("rebirth", "🔥", "REBIRTH", C.Pink, 5)
 
 	Theme.button({
 		name = "Settings",
@@ -432,6 +434,9 @@ function Hud.create(ctx)
 	State.observe("inventory", refreshInventory)
 	State.observe("capacity", refreshInventory)
 	State.observe("upgrades", refreshBadges)
+	State.observe("quests", function(view)
+		menuButtons.tasks.badge.Visible = TasksWindow.hasClaimable(view)
+	end)
 	State.observe("creatures", refreshBadges)
 	State.observe("rebirths", function(value)
 		refreshBadges()

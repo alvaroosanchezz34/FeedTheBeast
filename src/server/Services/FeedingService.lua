@@ -13,6 +13,8 @@ local FoodConfig = require(Shared.Config.FoodConfig)
 local EconomyConfig = require(Shared.Config.EconomyConfig)
 local MonetizationConfig = require(Shared.Config.MonetizationConfig)
 local CreatureConfig = require(Shared.Config.CreatureConfig)
+local RarityConfig = require(Shared.Config.RarityConfig)
+local ProfileSchema = require(Shared.Logic.ProfileSchema)
 local Constants = require(Shared.Constants)
 local EconomyMath = require(Shared.Logic.EconomyMath)
 local Inventory = require(Shared.Logic.Inventory)
@@ -90,7 +92,28 @@ function FeedingService.feed(session, creatureId, foodId, opts)
 	end
 	profile.stats.foodsFed += 1
 
+	local favorite = table.find(food.favoriteOf, creature.species) ~= nil
+	services.QuestService.progress(session, "Fed", 1)
+	if (RarityConfig.Index[food.rarity] or 0) >= RarityConfig.Index.Rare then
+		services.QuestService.progress(session, "FedRare", 1)
+	end
+	if favorite then
+		services.QuestService.progress(session, "FedFavorite", 1)
+	end
+
+	local collectionBefore = table.clone(profile.collection)
 	local mutated = services.MutationService.tryFeedMutation(session, creature, foodId)
+	if mutated then
+		-- Descubrimiento: misma tarjeta que al eclosionar, marcando si es nueva en la colección.
+		services.ValidationService.fireClient(session.player, "Notify", {
+			kind = "hatch",
+			species = creature.species,
+			mutation = mutated,
+			isNew = not collectionBefore[ProfileSchema.collectionKey(creature.species, mutated)],
+			stored = false,
+			mutatedByFood = true,
+		})
+	end
 
 	local _, levelAfter = EconomyMath.scaleFromGrowth(creature.species, creature.growth, maxLevel)
 	local stageAfter = EconomyMath.stageFor(levelAfter)
@@ -111,7 +134,7 @@ function FeedingService.feed(session, creatureId, foodId, opts)
 			evolved = evolved and stageAfter or nil,
 			level = levelAfter,
 			first = first,
-			favorite = table.find(food.favoriteOf, creature.species) ~= nil,
+			favorite = favorite,
 			mutated = mutated,
 		})
 	end
@@ -122,6 +145,7 @@ function FeedingService.feed(session, creatureId, foodId, opts)
 		services.StateService.push(session.userId, "flags")
 	end
 	if levelAfter > levelBefore then
+		services.QuestService.progress(session, "LevelUp", levelAfter - levelBefore)
 		services.EconomyService.incomeChanged(session.userId)
 	end
 	return true, nil

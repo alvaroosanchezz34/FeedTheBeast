@@ -20,6 +20,7 @@ local Windows = require(UI:WaitForChild("Windows"))
 local ShopWindow = require(UI:WaitForChild("ShopWindow"))
 local BeastsWindow = require(UI:WaitForChild("BeastsWindow"))
 local MiscWindows = require(UI:WaitForChild("MiscWindows"))
+local TasksWindow = require(UI:WaitForChild("TasksWindow"))
 local Tutorial = require(UI:WaitForChild("Tutorial"))
 
 local UIController = {}
@@ -202,6 +203,7 @@ function UIController.Start()
 	ShopWindow.register(windows, ctx)
 	BeastsWindow.register(windows, ctx)
 	MiscWindows.register(windows, ctx)
+	TasksWindow.register(windows, ctx)
 	tutorial = Tutorial.create(ctx, hud)
 
 	controllers.WorldController.KioskOpened:Connect(function(kioskId)

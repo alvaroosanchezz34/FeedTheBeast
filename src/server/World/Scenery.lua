@@ -118,7 +118,7 @@ local function crystal(parent, x, z, rng)
 end
 
 -- Coloca `count` objetos en posiciones libres dentro de un anillo [rMin, rMax].
-local function scatter(rng, count, margin, rMin, rMax, place)
+local function scatter(rng, count, margin, rMin, rMax, place, positions)
 	local placed, attempts = 0, 0
 	local taken = {}
 	while placed < count and attempts < count * 40 do
@@ -136,6 +136,7 @@ local function scatter(rng, count, margin, rMin, rMax, place)
 			end
 			if ok then
 				table.insert(taken, { x = x, z = z })
+				table.insert(positions, { x = x, z = z, margin = margin })
 				place(x, z)
 				placed += 1
 			end
@@ -148,26 +149,27 @@ function Scenery.build(parent)
 	local rng = Random.new(20261011)
 	local folder = Build.folder("Scenery", parent)
 	local half = W.GroundSize / 2
-	local placed = {}
+	local placed = { positions = {} }
+	local positions = placed.positions
 
 	placed.trees = scatter(rng, Scenery.Counts.trees, 5, W.PlazaRadius + 12, half - 14, function(x, z)
 		tree(folder, x, z, rng)
-	end)
+	end, positions)
 	placed.mushrooms = scatter(rng, Scenery.Counts.mushrooms, 4, W.PlazaRadius + 8, half - 20, function(x, z)
 		mushroom(folder, x, z, rng)
-	end)
+	end, positions)
 	placed.rocks = scatter(rng, Scenery.Counts.rocks, 3, W.PlazaRadius + 6, half - 12, function(x, z)
 		rock(folder, x, z, rng)
-	end)
+	end, positions)
 	placed.bushes = scatter(rng, Scenery.Counts.bushes, 2.5, W.PlazaRadius + 6, half - 12, function(x, z)
 		bush(folder, x, z, rng)
-	end)
+	end, positions)
 	placed.flowers = scatter(rng, Scenery.Counts.flowers, 1.5, W.PlazaRadius + 6, half - 12, function(x, z)
 		flowers(folder, x, z, rng)
-	end)
+	end, positions)
 	placed.crystals = scatter(rng, Scenery.Counts.crystals, 3, W.PlazaRadius + 10, half - 30, function(x, z)
 		crystal(folder, x, z, rng)
-	end)
+	end, positions)
 
 	-- Colinas fuera del área jugable: rompen el horizonte plano.
 	for i = 1, Scenery.Counts.hills do

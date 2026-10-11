@@ -137,6 +137,10 @@ local function tryCollect(session, entry)
 		return false
 	end
 	profile.stats.foodsCollected += added
+	services.QuestService.progress(session, "FoodCollected", added)
+	if entry.source == "event" then
+		services.QuestService.progress(session, "EventAction", 1)
+	end
 	services.StateService.push(session.userId, "inventory", "stats")
 	services.VFXService.playFor(session.player, "PickupFood", { position = entry.position, radius = 1.2, food = entry.foodId, amount = added })
 	return true

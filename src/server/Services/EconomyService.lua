@@ -80,6 +80,7 @@ function EconomyService.collect(userId)
 	local added = EconomyService.addCoins(userId, amount)
 	EconomyService.refreshPlot(session)
 	if added > 0 then
+		services.QuestService.progress(session, "PadCollected", 1)
 		if not profile.flags.firstCollect then
 			profile.flags.firstCollect = true
 			services.StateService.push(userId, "flags")

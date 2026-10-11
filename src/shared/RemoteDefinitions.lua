@@ -21,6 +21,8 @@ local RemoteDefinitions = {
 		ClaimOffline = { args = {}, rate = 1, burst = 2 },
 		SetSetting = { args = { { type = "enum", values = Constants.SettingKeys }, { type = "setting" } }, rate = 4, burst = 8 },
 		DropCrate = { args = {}, rate = 1, burst = 2 },
+		ClaimQuest = { args = { { type = "int", min = 1, max = 10 } }, rate = 2, burst = 4 },
+		ClaimQuestBonus = { args = {}, rate = 1, burst = 2 },
 		Admin = {
 			args = { { type = "id" }, { type = "string", maxLen = 60, optional = true }, { type = "string", maxLen = 60, optional = true } },
 			rate = 2,

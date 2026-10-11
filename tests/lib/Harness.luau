@@ -1219,7 +1219,7 @@ function Harness:bootServer()
 	local names = {
 		"ValidationService", "PlotService", "CharacterService", "StateService", "EconomyService", "CreatureService",
 		"MutationService", "VFXService", "FoodService", "FeedingService", "ShopService", "RebirthService",
-		"TheftService", "EventService", "MonetizationService", "LeaderboardService", "AdminService", "PlayerDataService",
+		"TheftService", "EventService", "QuestService", "MonetizationService", "LeaderboardService", "AdminService", "PlayerDataService",
 	}
 	local services = {}
 	for _, name in ipairs(names) do

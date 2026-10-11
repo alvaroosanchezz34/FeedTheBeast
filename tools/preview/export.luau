@@ -61,10 +61,13 @@ return function()
 	local creatures = {}
 	for _, speciesId in ipairs(CreatureConfig.Order) do
 		for _, mutationId in ipairs(MutationConfig.Order) do
-			for _, pose in ipairs({ "idle", "eat" }) do
+			for _, pose in ipairs({ "idle", "eat", "stage2", "stage3" }) do
 				if pose == "idle" or mutationId == "NORMAL" then
 					local visual = Builder.build(speciesId)
 					MutationVisuals.apply(visual, mutationId)
+					if pose == "stage2" or pose == "stage3" then
+						visual:setStage(pose == "stage2" and 2 or 3)
+					end
 					visual.species.idle(visual, 0.9)
 					if pose == "eat" then
 						visual.species.eat(visual, 0.17)

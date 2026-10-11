@@ -147,7 +147,7 @@ function Toasts.create(ctx)
 		button.Parent = ctx.layers.overlay
 		card = button
 
-		Theme.label({ text = data.isNew and "NEW BEAST!" or "HATCHED!", font = Theme.Fonts.Display, textSize = 26, color = data.isNew and C.Gold or C.Text, stroke = true, size = UDim2.new(1, 0, 0, 40), position = UDim2.fromOffset(0, 10), zindex = 21 }, button)
+		Theme.label({ text = data.mutatedByFood and (data.isNew and "NEW MUTATION!" or "MUTATED!") or (data.isNew and "NEW BEAST!" or "HATCHED!"), font = Theme.Fonts.Display, textSize = 26, color = data.isNew and C.Gold or C.Text, stroke = true, size = UDim2.new(1, 0, 0, 40), position = UDim2.fromOffset(0, 10), zindex = 21 }, button)
 		local portrait = Theme.panel({ name = "Portrait", size = UDim2.fromOffset(230, 200), position = UDim2.new(0.5, 0, 0, 56), anchor = Vector2.new(0.5, 0), color = Theme.darken(rarityColor, 0.6), strokeThickness = 2, zindex = 21 }, button)
 		local icon = CreatureIcon.new({ species = data.species, mutation = mutation.id }, portrait)
 		if icon then

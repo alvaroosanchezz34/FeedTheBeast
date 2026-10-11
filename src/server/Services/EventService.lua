@@ -175,6 +175,7 @@ function EventService.giantFeed(session, foodId)
 	giant.contributions[userId] = (giant.contributions[userId] or 0) + food.growth
 	giant.progress = math.min(giant.goal, giant.progress + food.growth)
 	session.profile.stats.giantFeeds += 1
+	services.QuestService.progress(session, "EventAction", 1)
 	services.StateService.push(userId, "inventory", "stats")
 	stateFolder:SetAttribute(A.Progress, giant.progress)
 	if giant.model then

@@ -90,6 +90,9 @@ end
 providers.stats = function(session)
 	return Utilities.shallowCopy(session.profile.stats)
 end
+providers.quests = function(session)
+	return services.QuestService.view(session)
+end
 providers.plotIndex = function(session)
 	return session.plotIndex or 0
 end

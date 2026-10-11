@@ -12,10 +12,11 @@ local UpgradeConfig = require(Config.UpgradeConfig)
 local EconomyConfig = require(Config.EconomyConfig)
 local MonetizationConfig = require(Config.MonetizationConfig)
 local VFXConfig = require(Config.VFXConfig)
+local QuestConfig = require(Config.QuestConfig)
 
 local ProfileSchema = {}
 
-ProfileSchema.CURRENT_VERSION = 2
+ProfileSchema.CURRENT_VERSION = 3
 
 local function isFinite(n)
 	return type(n) == "number" and n == n and n ~= math.huge and n ~= -math.huge
@@ -48,10 +49,13 @@ function ProfileSchema.default(now)
 			cratesRecovered = 0,
 			totalCoinsEarned = 0,
 			giantFeeds = 0,
+			questsClaimed = 0,
 		},
 		flags = {},
 		settings = { vfxQuality = "Auto", sfxVolume = 1, musicVolume = 1 },
 		receipts = {},
+		-- Tareas diarias: día UTC del tablero, lista { id, progress, claimed } y premio extra.
+		quests = { day = 0, list = {}, bonusClaimed = false },
 	}
 	return profile
 end
@@ -108,6 +112,14 @@ local MIGRATIONS = {
 		data.version = 2
 		return data
 	end,
+	-- v2 -> v3: tareas diarias (el tablero se genera en la primera sesión).
+	[2] = function(data)
+		if type(data.quests) ~= "table" then
+			data.quests = { day = 0, list = {}, bonusClaimed = false }
+		end
+		data.version = 3
+		return data
+	end,
 }
 
 -- Devuelve (perfil, nil) o (nil, motivoError). No modifica `data` si falla antes de migrar.
@@ -154,7 +166,7 @@ function ProfileSchema.validate(profile)
 	if not isFinite(profile.coins) then
 		return false, "coins_not_finite"
 	end
-	for _, field in ipairs({ "inventory", "creatures", "collection", "upgrades", "stats", "flags", "settings", "receipts", "boosts", "cosmetics" }) do
+	for _, field in ipairs({ "inventory", "creatures", "collection", "upgrades", "stats", "flags", "settings", "receipts", "boosts", "cosmetics", "quests" }) do
 		if type(profile[field]) ~= "table" then
 			return false, field .. "_not_a_table"
 		end
@@ -297,6 +309,24 @@ function ProfileSchema.sanitize(profile, now)
 	end
 	settings.sfxVolume = num(settings.sfxVolume, 1, 0, 1, false)
 	settings.musicVolume = num(settings.musicVolume, 1, 0, 1, false)
+
+	-- Tareas: entradas desconocidas fuera; progreso acotado; `claimed` exige progreso completo.
+	local quests = profile.quests
+	quests.day = num(quests.day, 0, 0, 2 ^ 31, true)
+	quests.bonusClaimed = quests.bonusClaimed == true
+	local list = {}
+	if type(quests.list) == "table" then
+		for _, entry in ipairs(quests.list) do
+			local def = type(entry) == "table" and type(entry.id) == "string" and QuestConfig.Quests[entry.id] or nil
+			if def and #list < QuestConfig.DailyCount then
+				local progress = num(entry.progress, 0, 0, def.goal, true)
+				table.insert(list, { id = def.id, progress = progress, claimed = entry.claimed == true and progress >= def.goal })
+			else
+				warn("invalid quest entry removed")
+			end
+		end
+	end
+	quests.list = list
 
 	-- Recibos: lista de strings, acotada.
 	local receipts = {}

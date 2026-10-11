@@ -213,6 +213,8 @@ def creature_sheet(creatures, pose, path, cell=250):
     for c in creatures:
         if c["species"] not in species:
             species.append(c["species"])
+    if pose == "evolution":
+        return stage_sheet(creatures, species, path, cell)
     mutations = ["NORMAL", "GOLDEN", "ELECTRIC", "COSMIC"] if pose == "idle" else ["NORMAL"]
     views = [c for c in creatures if c["pose"] == pose]
     cols, rows = len(species), len(mutations)
@@ -236,6 +238,30 @@ def creature_sheet(creatures, pose, path, cell=250):
         label = mid if pose == "idle" else "EATING"
         draw.text((left / 2 + 4, y), label, font=f_small, fill=MUTATION[mid], anchor="mm")
     draw.text((pad, sheet.height - 18), "Approximate offline preview (flat shading, no auras/particles) — not the Roblox renderer.", font=f_small, fill=(120, 128, 160))
+    sheet.save(path)
+    return path
+
+
+def stage_sheet(creatures, species, path, cell=250):
+    """Las tres fases de evolución de cada especie (mutación normal)."""
+    stages = [("idle", "BABY"), ("stage2", "EVOLVED"), ("stage3", "APEX")]
+    pad, head, left = 8, 46, 96
+    sheet = Image.new("RGB", (left + len(species) * (cell + pad) + pad, head + len(stages) * (cell + pad) + pad + 22), (23, 26, 43))
+    draw = ImageDraw.Draw(sheet)
+    f_big, f_small = font(18), font(12)
+    for ci, sid in enumerate(species):
+        x = left + pad + ci * (cell + pad)
+        for ri, (pose, label) in enumerate(stages):
+            c = next((v for v in creatures if v["species"] == sid and v["mutation"] == "NORMAL" and v["pose"] == pose), None)
+            if not c:
+                continue
+            if ri == 0:
+                draw.text((x + cell / 2, 14), c["name"].upper(), font=f_big, fill=RARITY[c["rarity"]], anchor="mm")
+                draw.text((x + cell / 2, 34), c["rarity"], font=f_small, fill=(176, 184, 224), anchor="mm")
+            sheet.paste(creature_view(c, cell).convert("RGB"), (x, head + ri * (cell + pad)))
+    for ri, (_, label) in enumerate(stages):
+        draw.text((left / 2 + 4, head + ri * (cell + pad) + cell / 2), label, font=f_small, fill=(255, 214, 90), anchor="mm")
+    draw.text((pad, sheet.height - 18), "Evolution stages at the same scale per column (in game the beast also grows). Approximate offline preview.", font=f_small, fill=(120, 128, 160))
     sheet.save(path)
     return path
 
@@ -276,7 +302,7 @@ def food_sheet(foods, path, cell=230, cols=5):
 
 def turnaround(creatures, species, path, cell=420):
     """Una especie desde cuatro ángulos (para revisar solapes y proporciones)."""
-    views = [c for c in creatures if c["species"] == species and c["mutation"] == "NORMAL"]
+    views = [c for c in creatures if c["species"] == species and c["mutation"] == "NORMAL" and c["pose"] in ("idle", "eat")]
     angles = [(-0.42, 0.22, -1.0), (-1.0, 0.15, -0.05), (0.6, 0.3, 1.0), (0.0, 0.05, -1.0)]
     sheet = Image.new("RGB", (cell * len(angles), cell * len(views)), (23, 26, 43))
     for row, c in enumerate(views):
@@ -313,6 +339,7 @@ def main():
         world = json.load(fh)
     print(creature_sheet(creatures, "idle", os.path.join(ROOT, "creatures.png")))
     print(creature_sheet(creatures, "eat", os.path.join(ROOT, "creatures_eat.png")))
+    print(creature_sheet(creatures, "evolution", os.path.join(ROOT, "evolution.png")))
     print(world_view(world, os.path.join(ROOT, "world.png")))
     with open(os.path.join(ROOT, "foods.json")) as fh:
         print(food_sheet(json.load(fh), os.path.join(ROOT, "foods.png")))

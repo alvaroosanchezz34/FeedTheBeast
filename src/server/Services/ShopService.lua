@@ -87,6 +87,7 @@ function ShopService.buyEgg(session, eggId)
 		return false, "add_failed"
 	end
 	profile.stats.eggsHatched += 1
+	services.QuestService.progress(session, "Hatched", 1)
 	services.StateService.push(session.userId, "stats")
 
 	local species = CreatureConfig.Species[speciesId]
@@ -137,6 +138,7 @@ function ShopService.buyUpgrade(session, upgradeId)
 		return false, "no_coins"
 	end
 	profile.upgrades[upgradeId] = level + 1
+	services.QuestService.progress(session, "UpgradeBought", 1)
 	services.StateService.push(session.userId, "upgrades", "capacity", "slots")
 	if upgradeId == "PRODUCTION" then
 		services.EconomyService.incomeChanged(session.userId)
