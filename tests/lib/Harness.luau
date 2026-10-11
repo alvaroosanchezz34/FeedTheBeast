@@ -110,7 +110,7 @@ local function stateOf(instance)
 	end
 	local state = instanceState[id]
 	if not state then
-		state = { signals = {}, props = {} }
+		state = { signals = {}, props = {}, instance = instance, watched = {} }
 		instanceState[id] = state
 	end
 	return state
@@ -130,6 +130,60 @@ Harness.signalOf = signalOf
 Harness.stateOf = stateOf
 
 local current = nil -- arnés activo (los mocks globales lo consultan)
+
+-- Lune no emite señales de cambio por sí mismo. `sweep` las reconstruye comparando el estado
+-- actual con el último visto, para las instancias que tienen algún oyente:
+--   * GetAttributeChangedSignal / AttributeChanged
+--   * GetPropertyChangedSignal
+--   * CollectionService:GetInstanceRemovedSignal (instancias destruidas o fuera del árbol)
+local TEST_ATTRIBUTE = "TestUid"
+
+local function alive(instance)
+	local ok, parent = pcall(function()
+		return instance.Parent
+	end)
+	return ok, parent
+end
+
+local function sweepInstance(state)
+	local instance = state.instance
+	if not instance or not alive(instance) then
+		return
+	end
+	for name, signal in pairs(state.signals) do
+		local kind, key = string.match(name, "^(%a+):(.+)$")
+		if kind == "attr" or kind == "prop" then
+			local ok, value = pcall(function()
+				if kind == "attr" then
+					return instance:GetAttribute(key)
+				end
+				return instance[key]
+			end)
+			if ok then
+				local seen = state.watched[name]
+				if seen == nil then
+					state.watched[name] = { value = value }
+				elseif seen.value ~= value then
+					seen.value = value
+					signal:Fire()
+				end
+			end
+		elseif name == "AttributeChanged" and #signal.handlers > 0 then
+			local attributes = instance:GetAttributes()
+			local seen = state.watched[name]
+			if seen == nil then
+				state.watched[name] = attributes
+			else
+				state.watched[name] = attributes
+				for attribute, value in pairs(attributes) do
+					if attribute ~= TEST_ATTRIBUTE and seen[attribute] ~= value then
+						signal:Fire(attribute)
+					end
+				end
+			end
+		end
+	end
+end
 
 local implemented = false
 
@@ -243,12 +297,12 @@ local function implementMocks()
 	event("RemoteEvent", "OnClientEvent")
 	roblox.implementMethod("RemoteEvent", "FireClient", function(self, player, ...)
 		if current then
-			current:_recordSend(player.UserId, self.Name, table.pack(...))
+			current:_recordSend(player.UserId, self.Name, table.pack(...), self)
 		end
 	end)
 	roblox.implementMethod("RemoteEvent", "FireAllClients", function(self, ...)
 		if current then
-			current:_recordSend("all", self.Name, table.pack(...))
+			current:_recordSend("all", self.Name, table.pack(...), self)
 		end
 	end)
 	roblox.implementMethod("RemoteEvent", "FireServer", function(self, ...)
@@ -305,9 +359,6 @@ local function implementMocks()
 	roblox.implementMethod("Workspace", "GetServerTimeNow", function()
 		return current and current.clock.server or 0
 	end)
-	roblox.implementProperty("Workspace", "CurrentCamera", function()
-		return current and current.camera or nil
-	end)
 
 	-- DataModel
 	storedProperty("DataModel", "JobId", "test-job")
@@ -342,9 +393,9 @@ local function implementMocks()
 	roblox.implementProperty("UIGridLayout", "AbsoluteContentSize", function()
 		return roblox.Vector2.new(100, 100)
 	end)
-	roblox.implementProperty("Camera", "ViewportSize", function()
-		return roblox.Vector2.new(1280, 720)
-	end)
+	-- Nota: las propiedades nativas de solo lectura sin valor por defecto (Camera.ViewportSize,
+	-- GuiBase2d.AbsoluteSize, BasePart.Position...) no se pueden simular en Lune. El código del
+	-- juego las lee de forma tolerante o usa equivalentes (CFrame.Position).
 
 	-- Partículas / sonido
 	roblox.implementMethod("ParticleEmitter", "Emit", function(self, count)
@@ -549,12 +600,30 @@ local function makeCollectionService(h)
 		end
 		return s
 	end
+	service.tracked = {} -- tag -> lista de instancias etiquetadas
 	function service:AddTag(instance, tag)
 		if instance:HasTag(tag) then
 			return
 		end
 		instance:AddTag(tag)
+		service.tracked[tag] = service.tracked[tag] or {}
+		table.insert(service.tracked[tag], instance)
 		signal(service.added, tag):Fire(instance)
+	end
+	-- Detecta instancias etiquetadas que han salido del DataModel (destruidas o sin padre).
+	function service:sweep()
+		for tag, list in pairs(service.tracked) do
+			for index = #list, 1, -1 do
+				local instance = list[index]
+				local ok, inTree = pcall(function()
+					return instance:IsDescendantOf(h.game)
+				end)
+				if not ok or not inTree then
+					table.remove(list, index)
+					signal(service.removed, tag):Fire(instance)
+				end
+			end
+		end
 	end
 	function service:RemoveTag(instance, tag)
 		if not instance:HasTag(tag) then
@@ -651,6 +720,8 @@ function Harness.new(opts)
 	self.services = {}
 	self.quietWarnings = opts.quietWarnings == true
 	current = self
+	-- Cada arnés empieza con su propio registro de instancias observadas.
+	table.clear(instanceState)
 
 	local game = self.game
 	local Random = makeRandomLib()
@@ -811,6 +882,17 @@ function Harness.new(opts)
 	}) do
 		env[name] = _G[name] or getfenv()[name]
 	end
+	-- Los errores de Lune son userdata: `debug.traceback(err)` fallaría dentro de xpcall
+	-- ("error in error handling"), así que se convierte a texto antes.
+	env.debug = {
+		traceback = function(message, level)
+			local ok, trace = pcall(debug.traceback, "", (tonumber(level) or 1) + 1)
+			return tostring(message) .. (ok and trace or "")
+		end,
+		info = debug.info,
+		profilebegin = function() end,
+		profileend = function() end,
+	}
 	self.env = env
 
 	-- Reloj controlado.
@@ -836,6 +918,28 @@ function Harness:service(name)
 	local mock = self.services[name]
 	if mock then
 		return mock
+	end
+	if name == "Players" then
+		-- `LocalPlayer` es una propiedad nativa (siempre nil en Lune): se sirve a través de un
+		-- proxy que delega todo lo demás en la instancia real.
+		local players = self.game:GetService("Players")
+		local harness = self
+		local proxy = setmetatable({}, {
+			__index = function(_, key)
+				if key == "LocalPlayer" then
+					return harness.localPlayer
+				end
+				local value = players[key]
+				if type(value) == "function" then
+					return function(_, ...)
+						return value(players, ...)
+					end
+				end
+				return value
+			end,
+		})
+		self.services.Players = proxy
+		return proxy
 	end
 	return self.game:GetService(name)
 end
@@ -901,10 +1005,22 @@ function Harness:run(path)
 	return self:require(path)
 end
 
+-- Emite las señales de cambio pendientes (atributos, propiedades, instancias eliminadas).
+function Harness:sweep()
+	for _, state in pairs(instanceState) do
+		if next(state.signals) ~= nil then
+			sweepInstance(state)
+		end
+	end
+	self.services.CollectionService:sweep()
+end
+
 function Harness:settle(rounds)
 	for _ = 1, rounds or 4 do
 		luneTask.wait(0)
 	end
+	self:sweep()
+	luneTask.wait(0)
 end
 
 -- Avanza la simulación: `steps` latidos de `dt` segundos.
@@ -914,6 +1030,7 @@ function Harness:step(dt, steps)
 		self:advance(dt)
 		self.runService.Heartbeat:Fire(dt)
 		luneTask.wait(0)
+		self:sweep()
 	end
 	luneTask.wait(0)
 end
@@ -921,8 +1038,12 @@ end
 ---------------------------------------------------------------------------------------------
 -- Remotos y jugadores
 ---------------------------------------------------------------------------------------------
-function Harness:_recordSend(target, name, args)
+function Harness:_recordSend(target, name, args, remote)
 	table.insert(self.sent, { to = target, name = name, args = args })
+	-- Con un cliente arrancado en el mismo DataModel, los mensajes del servidor le llegan de verdad.
+	if self.clientBooted and remote and self.localPlayer and (target == "all" or target == self.localPlayer.UserId) then
+		signalOf(remote, "OnClientEvent"):Fire(table.unpack(args, 1, args.n))
+	end
 end
 
 function Harness:_kick(player, message)
@@ -1097,6 +1218,88 @@ function Harness:joinPlayer(userId, name)
 	self:step(0.1, 2)
 	local session = self.server.PlayerDataService.getSession(userId)
 	return player, session
+end
+
+---------------------------------------------------------------------------------------------
+-- Cliente
+---------------------------------------------------------------------------------------------
+-- Arranca el cliente real (Bootstrap.client) para `player` en el MISMO DataModel que el servidor:
+-- los remotos quedan conectados en ambos sentidos. opts = { touch = bool }
+function Harness:bootClient(player, opts)
+	opts = opts or {}
+	current = self
+	self.localPlayer = player
+	if opts.touch then
+		self.services.UserInputService.TouchEnabled = true
+		self.services.UserInputService.KeyboardEnabled = false
+	end
+	local playerGui = roblox.Instance.new("PlayerGui")
+	playerGui.Name = "PlayerGui"
+	playerGui.Parent = player
+	self.playerGui = playerGui
+	local camera = roblox.Instance.new("Camera")
+	camera.Name = "Camera"
+	camera.CFrame = roblox.CFrame.new(0, 20, 40)
+	camera.Parent = self.game:GetService("Workspace")
+	self.game:GetService("Workspace").CurrentCamera = camera
+	self.camera = camera
+	self.clientBooted = true
+	self:run("StarterPlayer.StarterPlayerScripts.Client.Bootstrap")
+	self:settle(6)
+	local names = {
+		"StateController", "SettingsController", "EffectCleanup", "AudioController", "EffectsController",
+		"AuraController", "CreatureController", "CameraController", "WorldController", "InputController", "UIController",
+	}
+	local controllers = {}
+	for _, name in ipairs(names) do
+		controllers[name] = self:require("StarterPlayer.StarterPlayerScripts.Client.Controllers." .. name)
+	end
+	self.client = controllers
+	return controllers
+end
+
+-- Avanza el cliente: `steps` frames de `dt` segundos (también avanza el reloj).
+function Harness:frame(dt, steps)
+	current = self
+	for _ = 1, steps or 1 do
+		self:advance(dt)
+		self.runService.RenderStepped:Fire(dt)
+		luneTask.wait(0)
+		self:sweep()
+	end
+	luneTask.wait(0)
+end
+
+-- Servidor y cliente a la vez.
+function Harness:tick(dt, steps)
+	current = self
+	for _ = 1, steps or 1 do
+		self:advance(dt)
+		self.runService.Heartbeat:Fire(dt)
+		luneTask.wait(0)
+		self:sweep()
+		luneTask.wait(0)
+		self.runService.RenderStepped:Fire(dt)
+		luneTask.wait(0)
+	end
+	luneTask.wait(0)
+end
+
+-- Coloca la cámara del cliente cerca de un punto (el LOD de animaciones y auras depende de ella).
+function Harness:lookAt(position)
+	self.camera.CFrame = roblox.CFrame.new(position + roblox.Vector3.new(0, 12, -24))
+end
+
+-- Simula la pulsación de un botón de la interfaz.
+function Harness:click(button)
+	current = self
+	signalOf(button, "Activated"):Fire()
+	self:settle(3)
+end
+
+-- Busca un descendiente por nombre (búsqueda en profundidad).
+function Harness:findUI(rootInstance, name)
+	return rootInstance:FindFirstChild(name, true)
 end
 
 function Harness:use()

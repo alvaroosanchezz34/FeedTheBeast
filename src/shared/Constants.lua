@@ -61,8 +61,11 @@ local Constants = {
 	},
 
 	PickupAttr = {
+		Id = "PickupId",
 		Food = "FoodId",
 		Golden = "Golden",
+		DropFrom = "DropFrom", -- altura desde la que cae (0 = aparece en el sitio)
+		Owner = "Owner", -- userId del único jugador que puede recogerla (0 = cualquiera)
 	},
 
 	SettingKeys = { "vfxQuality", "sfxVolume", "musicVolume" },

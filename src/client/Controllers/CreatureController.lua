@@ -25,7 +25,8 @@ local Signal = require(Shared.Signal)
 
 local CreatureController = {}
 
-CreatureController.FeedRequested = Signal.new() -- (entry)
+CreatureController.FeedRequested = Signal.new() -- (entry) al pulsar el prompt
+CreatureController.FeedReleased = Signal.new() -- (entry) al soltarlo
 
 local controllers
 local StateController
@@ -132,6 +133,9 @@ local function makePrompt(entry)
 	prompt.Parent = holder
 	prompt.Triggered:Connect(function()
 		CreatureController.FeedRequested:Fire(entry)
+	end)
+	prompt.TriggerEnded:Connect(function()
+		CreatureController.FeedReleased:Fire(entry)
 	end)
 	entry.promptHolder = holder
 	entry.prompt = prompt
@@ -469,10 +473,19 @@ function CreatureController.Update(dt)
 			elseif #entry.pops > 0 or entry.baseScale ~= entry.targetScale then
 				updateEntry(entry, 0, false)
 			end
-		elseif entry.displayScale ~= entry.targetScale then
-			entry.baseScale = entry.targetScale
-			applyScale(entry, entry.targetScale)
-			refreshNameplate(entry)
+		else
+			-- Lejos de la cámara no se anima: se descartan las animaciones pendientes para que no
+			-- se reproduzcan con retraso al acercarse, y el tamaño salta al valor final.
+			entry.eat = nil
+			entry.growAfter = nil
+			if #entry.pops > 0 then
+				table.clear(entry.pops)
+			end
+			if entry.displayScale ~= entry.targetScale then
+				entry.baseScale = entry.targetScale
+				applyScale(entry, entry.targetScale)
+				refreshNameplate(entry)
+			end
 		end
 	end
 end

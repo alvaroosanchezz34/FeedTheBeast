@@ -66,10 +66,11 @@ function FoodService.spawn(foodId, position, opts)
 		part.Size = Vector3.new(2, 2, 2)
 	end
 	part.CFrame = CFrame.new(position)
+	part:SetAttribute(Constants.PickupAttr.Id, nextId)
 	part:SetAttribute(Constants.PickupAttr.Food, foodId)
 	part:SetAttribute(Constants.PickupAttr.Golden, opts.golden == true)
-	part:SetAttribute("DropFrom", opts.dropFrom or 0)
-	part:SetAttribute("Owner", opts.owner or 0)
+	part:SetAttribute(Constants.PickupAttr.DropFrom, opts.dropFrom or 0)
+	part:SetAttribute(Constants.PickupAttr.Owner, opts.owner or 0)
 	part.Parent = folder
 	CollectionService:AddTag(part, Constants.Tags.Pickup)
 

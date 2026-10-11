@@ -1,19 +1,25 @@
 -- Puntos de integración de audio. NO hay IDs inventados: `id = ""` significa "pendiente de asignar".
--- AudioController ignora los sonidos sin ID. Asigna assets propios o con licencia verificada
--- (ver docs/ASSETS_PENDIENTES.md). `maxPerSecond` limita el spam cuando hay 8 jugadores.
+-- Asigna assets propios o con licencia verificada (ver docs/ASSETS_PENDIENTES.md).
+-- `maxPerSecond` limita el spam cuando hay 8 jugadores.
+--
+-- `fallback` (opcional) es la ruta de un sonido que se distribuye con el propio cliente de Roblox
+-- (rbxasset://, no es un asset subido). Solo se usa si el sonido no tiene `id` y
+-- `UseEngineFallbacks` está activo. Estas rutas NO se han podido comprobar fuera de Roblox Studio:
+-- si alguna no existe, AudioController lo detecta, avisa una vez y deja de usarla.
 local AudioConfig = {
 	MasterVolume = 0.8,
 	MaxDistance = 90,
 	MaxSimultaneous = 10,
+	UseEngineFallbacks = true,
 
 	Sounds = {
-		PickupFood = { id = "", volume = 0.5, pitch = { 0.95, 1.15 }, maxPerSecond = 6 },
-		Eat = { id = "", volume = 0.6, pitch = { 0.9, 1.2 }, maxPerSecond = 5, spatial = true },
+		PickupFood = { id = "", fallback = "rbxasset://sounds/electronicpingshort.mp3", volume = 0.5, pitch = { 0.95, 1.15 }, maxPerSecond = 6 },
+		Eat = { id = "", fallback = "rbxasset://sounds/snap.mp3", volume = 0.6, pitch = { 0.9, 1.2 }, maxPerSecond = 5, spatial = true },
 		Grow = { id = "", volume = 0.6, pitch = { 0.95, 1.1 }, maxPerSecond = 3, spatial = true },
-		Purchase = { id = "", volume = 0.6, maxPerSecond = 3 },
-		Coins = { id = "", volume = 0.5, pitch = { 0.95, 1.1 }, maxPerSecond = 4 },
+		Purchase = { id = "", fallback = "rbxasset://sounds/button.mp3", volume = 0.6, maxPerSecond = 3 },
+		Coins = { id = "", fallback = "rbxasset://sounds/electronicpingshort.mp3", volume = 0.5, pitch = { 0.95, 1.1 }, maxPerSecond = 4 },
 		Error = { id = "", volume = 0.4, maxPerSecond = 3 },
-		Click = { id = "", volume = 0.35, maxPerSecond = 10 },
+		Click = { id = "", fallback = "rbxasset://sounds/clickfast.mp3", volume = 0.35, maxPerSecond = 10 },
 		Hatch = { id = "", volume = 0.7, maxPerSecond = 2 },
 		MutationGolden = { id = "", volume = 0.8, maxPerSecond = 1, spatial = true },
 		MutationElectric = { id = "", volume = 0.7, maxPerSecond = 1, spatial = true },
